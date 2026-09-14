@@ -1,0 +1,22 @@
+name: makki_fila
+description: Lector de tickets del casino Makki para el mesón.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Lector de QR con la cámara. El rango es amplio a propósito: la versión exacta la resuelve
+  # el CI contra la versión de Flutter del build.
+  mobile_scanner: ">=5.0.0 <8.0.0"
+  http: ^1.2.0
+  shared_preferences: ^2.3.0
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

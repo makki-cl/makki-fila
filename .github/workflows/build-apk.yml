@@ -1,0 +1,62 @@
+name: Compilar APK
+
+# La VM de desarrollo no compila Android: el APK se arma acá y se publica como Release,
+# para que Obtainium lo instale y lo actualice solo en los equipos del mesón.
+
+on:
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: write # para crear el Release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # Versión fija, no "la estable del día": el build tiene que ser reproducible.
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.8
+          channel: stable
+          cache: true
+
+      # El repo versiona solo lib/ y pubspec: las carpetas de plataforma se generan acá.
+      - name: Generar carpeta android
+        run: |
+          flutter create --org cl.makki --project-name makki_fila --platforms=android .
+          rm -f test/widget_test.dart
+
+      - name: Dependencias
+        run: flutter pub get
+
+      - name: Analizar código
+        run: flutter analyze --no-fatal-infos
+
+      # La cámara es el corazón de la app: sin este permiso el lector no abre.
+      - name: Permisos y nombre
+        run: |
+          sed -i -E 's/android:label="[^"]+"/android:label="Makki Fila"/' android/app/src/main/AndroidManifest.xml
+          grep -q 'android.permission.CAMERA' android/app/src/main/AndroidManifest.xml || \
+            sed -i 's|<application|<uses-permission android:name="android.permission.CAMERA"/>\n    <application|' android/app/src/main/AndroidManifest.xml
+          # mobile_scanner necesita minSdk 21+; Flutter ya usa uno mayor, pero se deja explícito.
+          sed -i -E 's/minSdk = flutter.minSdkVersion/minSdk = 23/' android/app/build.gradle.kts 2>/dev/null || true
+
+      - name: Compilar APK
+        run: flutter build apk --release --dart-define=MAKKI_BASE_URL=${{ vars.MAKKI_BASE_URL }}
+
+      - name: Publicar Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Makki Fila v1.0.${{ github.run_number }}
+          files: build/app/outputs/flutter-apk/app-release.apk
+          generate_release_notes: true
