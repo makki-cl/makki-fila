@@ -64,12 +64,60 @@ class _ScanScreenState extends State<ScanScreen> {
     });
   }
 
+  /// Respaldo para cuando el teléfono del comensal no prende: se teclea el código de seis
+  /// caracteres. Es el único camino para la gente de empresas acreditadas, que no aparece en
+  /// la lista.
+  Future<void> _pedirCodigo() async {
+    final control = TextEditingController();
+    final codigo = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Código del ticket'),
+        content: TextField(
+          controller: control,
+          autofocus: true,
+          textCapitalization: TextCapitalization.characters,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 26, letterSpacing: 4, fontFamily: 'monospace'),
+          decoration: const InputDecoration(hintText: 'K7M-4QP'),
+          onSubmitted: (v) => Navigator.pop(ctx, v),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, control.text), child: const Text('Buscar')),
+        ],
+      ),
+    );
+
+    if (codigo == null || codigo.trim().isEmpty) return;
+    setState(() => _procesando = true);
+    final (resultado, ticket) = await widget.estado.marcar(codigo);
+    if (!mounted) return;
+    setState(() {
+      _resultado = resultado;
+      _ticket = ticket;
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 2200));
+    if (!mounted) return;
+    setState(() {
+      _resultado = null;
+      _ticket = null;
+      _procesando = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Escanear QR'),
         actions: [
+          IconButton(
+            onPressed: _pedirCodigo,
+            icon: const Icon(Icons.keyboard),
+            tooltip: 'Ingresar código a mano',
+          ),
           IconButton(
             onPressed: () => _camara.toggleTorch(),
             icon: const Icon(Icons.flashlight_on),
@@ -87,7 +135,7 @@ class _ScanScreenState extends State<ScanScreen> {
               child: Padding(
                 padding: EdgeInsets.all(28),
                 child: Text(
-                  'Apunta al QR del comensal',
+                  'Apunta al QR del comensal · el teclado de arriba es para dictar el código',
                   style: TextStyle(
                       color: Colors.white, fontSize: 16, backgroundColor: Colors.black54),
                 ),

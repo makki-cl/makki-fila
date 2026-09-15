@@ -4,8 +4,11 @@ import '../api/models.dart';
 import '../app_state.dart';
 
 /// La lista del día, para quien llega sin QR: los que se anotaron por el enlace general se
-/// buscan por nombre y se marcan a mano. Los de empresas acreditadas salen con su etiqueta,
-/// porque a ellos se les debe pedir el QR.
+/// buscan por nombre y se marcan a mano.
+///
+/// La gente de empresas **acreditadas** no aparece acá a propósito: ellos llegan con QR, y
+/// tenerlos en una lista que se marca con un toque invitaba justamente a saltarse el QR. Si a
+/// alguno se le apagó el teléfono, el camino es dictar su código en el lector.
 class ListScreen extends StatefulWidget {
   const ListScreen({super.key, required this.estado});
 
@@ -22,7 +25,9 @@ class _ListScreenState extends State<ListScreen> {
   @override
   Widget build(BuildContext context) {
     final dia = widget.estado.dia;
+    final acreditados = (dia?.tickets ?? []).where((t) => t.acreditada).length;
     final tickets = (dia?.tickets ?? []).where((t) {
+      if (t.acreditada) return false;
       if (t.estado == EstadoTicket.anulado) return false;
       if (_soloPendientes && t.estado == EstadoTicket.servido) return false;
       if (_busqueda.isEmpty) return true;
@@ -54,6 +59,17 @@ class _ListScreenState extends State<ListScreen> {
             title: const Text('Mostrar solo los que faltan'),
             dense: true,
           ),
+          if (acreditados > 0)
+            Container(
+              width: double.infinity,
+              color: const Color(0xFFFDF6E7),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: Text(
+                '$acreditados ticket(s) de empresas acreditadas no salen acá: llegan con QR. '
+                'Si a alguien se le apagó el teléfono, dicta su código en el lector.',
+                style: const TextStyle(fontSize: 12),
+              ),
+            ),
           const Divider(height: 1),
           Expanded(
             child: tickets.isEmpty
@@ -77,10 +93,7 @@ class _ListScreenState extends State<ListScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(t.persona),
-        content: Text(t.acreditada
-            ? '${t.empresa} es una empresa acreditada: su gente debería llegar con QR. '
-                '¿Marcar igual sin escanear?'
-            : 'Marcar como servido sin escanear el QR.'),
+        content: const Text('Marcar como servido sin escanear el QR.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
           FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Marcar')),
