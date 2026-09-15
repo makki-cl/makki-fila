@@ -14,7 +14,9 @@ class EnrollScreen extends StatefulWidget {
 }
 
 class _EnrollScreenState extends State<EnrollScreen> {
-  final _url = TextEditingController(text: 'https://dev.makki.cl');
+  // Dirección por defecto: hoy el sistema se alcanza por IP, sin dominio ni certificado.
+  // Cuando dev.makki.cl resuelva, cambiar por https://dev.makki.cl.
+  final _url = TextEditingController(text: 'http://38.7.207.23');
   final _codigo = TextEditingController();
 
   @override

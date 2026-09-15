@@ -45,6 +45,11 @@ jobs:
       - name: Permisos y nombre
         run: |
           sed -i -E 's/android:label="[^"]+"/android:label="Makki Fila"/' android/app/src/main/AndroidManifest.xml
+          # Android 9+ bloquea el HTTP sin cifrar. Mientras el servidor se alcance por IP no hay
+          # certificado posible, así que se permite explícitamente. QUITAR cuando dev.makki.cl
+          # tenga HTTPS: con dominio, esto deja de ser necesario y conviene que vuelva a bloquearse.
+          grep -q 'usesCleartextTraffic' android/app/src/main/AndroidManifest.xml || \
+            sed -i -E 's/(<application)/\1 android:usesCleartextTraffic="true"/' android/app/src/main/AndroidManifest.xml
           grep -q 'android.permission.CAMERA' android/app/src/main/AndroidManifest.xml || \
             sed -i 's|<application|<uses-permission android:name="android.permission.CAMERA"/>\n    <application|' android/app/src/main/AndroidManifest.xml
           # mobile_scanner necesita minSdk 21+; Flutter ya usa uno mayor, pero se deja explícito.
