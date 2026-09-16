@@ -138,6 +138,7 @@ class _ListScreenState extends State<ListScreen> {
         ResultadoMarca.ok => '${t.persona}: servido',
         ResultadoMarca.yaConsumido => '${t.persona} ya estaba servido',
         ResultadoMarca.anulado => 'Ese ticket está anulado',
+        ResultadoMarca.fueraDeLaCopia => 'No está en la lista bajada; actualiza',
         _ => 'No se pudo marcar',
       }),
     ));

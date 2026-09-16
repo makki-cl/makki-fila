@@ -186,4 +186,14 @@ class MarcaPendiente {
 }
 
 /// Resultado de marcar un ticket, ya interpretado para mostrarlo en pantalla.
-enum ResultadoMarca { ok, yaConsumido, anulado, noExiste, otroDia, sinConexion }
+enum ResultadoMarca {
+  ok,
+  yaConsumido,
+  anulado,
+  noExiste,
+  otroDia,
+  /// Sin señal y el ticket no está en la copia del día: puede ser falso, de otro casino,
+  /// o de alguien que se anotó después de la última descarga. No es un problema de red.
+  fueraDeLaCopia,
+  sinConexion,
+}

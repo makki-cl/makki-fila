@@ -121,7 +121,12 @@ class AppState extends ChangeNotifier {
       return (resultado, ticket ?? local);
     } catch (_) {
       // Sin señal: se marca localmente y se encola. La hora que queda es esta, la real.
-      if (local == null) return (ResultadoMarca.sinConexion, null);
+      if (local == null) {
+        // Se distingue el caso: si hay copia del día bajada, el problema no es la red —
+        // ese ticket no está en la lista. Decir "sin conexión" haría que el mesón deje
+        // pasar a alguien pensando que es culpa del wifi.
+        return (dia == null ? ResultadoMarca.sinConexion : ResultadoMarca.fueraDeLaCopia, null);
+      }
 
       local.estado = EstadoTicket.servido;
       local.consumidoUtc = DateTime.now().toUtc();
@@ -162,6 +167,13 @@ class AppState extends ChangeNotifier {
     cola = [];
     sesion = null;
     notifyListeners();
+  }
+
+  /// Hora en que se bajó la copia con la que se está trabajando.
+  String get horaDeLaCopia {
+    final b = dia?.bajadoUtc.toLocal();
+    if (b == null) return '—';
+    return '${b.hour.toString().padLeft(2, '0')}:${b.minute.toString().padLeft(2, '0')}';
   }
 
   String get _operadorOEquipo => operador.isNotEmpty ? operador : (sesion?.deviceName ?? 'mesón');

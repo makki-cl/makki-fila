@@ -128,7 +128,9 @@ class _ScanScreenState extends State<ScanScreen> {
       body: Stack(
         children: [
           MobileScanner(controller: _camara, onDetect: _alLeer),
-          if (_resultado != null) _Veredicto(resultado: _resultado!, ticket: _ticket),
+          if (_resultado != null)
+            _Veredicto(resultado: _resultado!, ticket: _ticket,
+                       horaCopia: widget.estado.horaDeLaCopia),
           if (_resultado == null)
             const Align(
               alignment: Alignment.bottomCenter,
@@ -149,10 +151,11 @@ class _ScanScreenState extends State<ScanScreen> {
 
 /// La respuesta grande: color, título y a quién pertenece el ticket.
 class _Veredicto extends StatelessWidget {
-  const _Veredicto({required this.resultado, this.ticket});
+  const _Veredicto({required this.resultado, this.ticket, this.horaCopia});
 
   final ResultadoMarca resultado;
   final Ticket? ticket;
+  final String? horaCopia;
 
   @override
   Widget build(BuildContext context) {
@@ -161,7 +164,10 @@ class _Veredicto extends StatelessWidget {
       ResultadoMarca.yaConsumido => (const Color(0xFFC2410C), Icons.info, 'Ya fue servido'),
       ResultadoMarca.anulado => (const Color(0xFFC0392B), Icons.cancel, 'Ticket anulado'),
       ResultadoMarca.otroDia => (const Color(0xFFC0392B), Icons.event_busy, 'No es de hoy o de este casino'),
-      ResultadoMarca.sinConexion => (const Color(0xFFC0392B), Icons.wifi_off, 'Sin conexión y sin copia local'),
+      ResultadoMarca.fueraDeLaCopia => (const Color(0xFFC0392B), Icons.help_outline,
+          'No está en la lista de hoy'),
+      ResultadoMarca.sinConexion => (const Color(0xFFC0392B), Icons.wifi_off,
+          'Sin conexión y sin copia del día'),
       ResultadoMarca.noExiste => (const Color(0xFFC0392B), Icons.help, 'Ticket desconocido'),
     };
 
@@ -179,6 +185,16 @@ class _Veredicto extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                     color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800)),
+            if (resultado == ResultadoMarca.fueraDeLaCopia)
+              Padding(
+                padding: const EdgeInsets.only(top: 14),
+                child: Text(
+                  'La copia es de las ${horaCopia ?? '—'}. Si la persona se anotó después, '
+                  'actualiza; si no, el código no corresponde a este día.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 15),
+                ),
+              ),
             if (ticket != null) ...[
               const SizedBox(height: 18),
               Text(ticket!.persona,
