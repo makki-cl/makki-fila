@@ -38,7 +38,35 @@ class _ListScreenState extends State<ListScreen> {
     }).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Lista de anotados')),
+      appBar: AppBar(
+        title: const Text('Lista de anotados'),
+        actions: [
+          // Las marcas hechas a mano sin señal quedan acá igual que las del lector: el botón
+          // tiene que estar donde se marcó, no solo en la pantalla de inicio.
+          if (widget.estado.pendientes > 0)
+            TextButton.icon(
+              onPressed: () async {
+                final n = await widget.estado.sincronizar();
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(n > 0 ? '$n marca(s) enviadas' : 'Sigue sin conexión'),
+                ));
+                setState(() {});
+              },
+              icon: const Icon(Icons.cloud_upload, color: Colors.white),
+              label: Text('${widget.estado.pendientes}',
+                  style: const TextStyle(color: Colors.white)),
+            ),
+          IconButton(
+            tooltip: 'Actualizar',
+            onPressed: () async {
+              await widget.estado.refrescar();
+              if (mounted) setState(() {});
+            },
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Padding(
