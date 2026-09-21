@@ -185,6 +185,40 @@ class MarcaPendiente {
       );
 }
 
+/// Lo que el mesón necesita ver después de marcar.
+///
+/// Un vale no es una inscripción: no tiene plato ni aparece en la lista del día, así que el
+/// servidor manda aparte el nombre de quien lo presentó y la plata. Por eso esto no puede ser
+/// solo un [Ticket].
+class RespuestaMarca {
+  const RespuestaMarca(this.resultado, {this.ticket, this.persona, this.monto, this.valor});
+
+  final ResultadoMarca resultado;
+  final Ticket? ticket;
+
+  /// De quién es el ticket, cuando no hay inscripción de dónde sacar el nombre.
+  final String? persona;
+
+  /// Lo efectivamente cobrado.
+  final num? monto;
+
+  /// Lo que valía el ticket. Si la compra fue mayor, la diferencia se paga en efectivo.
+  final num? valor;
+
+  /// Nombre a mostrar, venga de donde venga.
+  String? get nombre => persona?.isNotEmpty == true ? persona : ticket?.persona;
+
+  factory RespuestaMarca.desdeJson(
+          Map<String, dynamic> j, ResultadoMarca resultado, Ticket? ticket) =>
+      RespuestaMarca(
+        resultado,
+        ticket: ticket,
+        persona: j['persona'] as String?,
+        monto: j['monto'] as num?,
+        valor: j['valor'] as num?,
+      );
+}
+
 /// Resultado de marcar un ticket, ya interpretado para mostrarlo en pantalla.
 enum ResultadoMarca {
   ok,
@@ -203,6 +237,10 @@ enum ResultadoMarca {
   valeReservado,
   /// Se anotó pero su empresa todavía no le entrega el ticket.
   sinTicket,
+  /// El ticket de esa empresa vale un almuerzo y nada más: en la caja no se cobra.
+  soloParaAlmuerzo,
+  /// El ticket venció sin alcanzar a usarse.
+  vencido,
   /// Sin señal y el ticket no está en la copia del día: puede ser falso, de otro casino,
   /// o de alguien que se anotó después de la última descarga. No es un problema de red.
   fueraDeLaCopia,

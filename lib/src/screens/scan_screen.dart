@@ -4,13 +4,20 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../api/models.dart';
 import '../app_state.dart';
+import '../formato.dart';
 
 /// El lector. Está pensado para una fila: la respuesta ocupa media pantalla, se lee de lejos
 /// y en un segundo se vuelve a la cámara para el siguiente.
+///
+/// En la caja el ritmo es otro —hay que leer cuánto se cobró y si falta efectivo— así que la
+/// respuesta se queda en pantalla hasta que la persona del mesón la toca.
 class ScanScreen extends StatefulWidget {
-  const ScanScreen({super.key, required this.estado});
+  const ScanScreen({super.key, required this.estado, this.monto});
 
   final AppState estado;
+
+  /// Total de la compra, cuando se está cobrando en la caja. Vacío = se gasta el vale completo.
+  final num? monto;
 
   @override
   State<ScanScreen> createState() => _ScanScreenState();
@@ -22,9 +29,10 @@ class _ScanScreenState extends State<ScanScreen> {
     formats: const [BarcodeFormat.qrCode],
   );
 
-  ResultadoMarca? _resultado;
-  Ticket? _ticket;
+  RespuestaMarca? _respuesta;
   bool _procesando = false;
+
+  bool get _enCaja => widget.estado.modo == ModoMeson.caja;
 
   @override
   void dispose() {
@@ -36,12 +44,17 @@ class _ScanScreenState extends State<ScanScreen> {
     if (_procesando) return;
     final valor = captura.barcodes.firstOrNull?.rawValue;
     if (valor == null || valor.isEmpty) return;
+    await _marcar(valor, esperaAntesDeSeguir: const Duration(milliseconds: 1600));
+  }
 
+  Future<void> _marcar(String lectura, {required Duration esperaAntesDeSeguir}) async {
     setState(() => _procesando = true);
-    final (resultado, ticket) = await widget.estado.marcar(valor);
+    final respuesta = await widget.estado.marcar(lectura, monto: widget.monto);
 
     // El mesón mira al comensal, no a la pantalla: la respuesta también se siente.
-    if (resultado == ResultadoMarca.ok) {
+    final bien = respuesta.resultado == ResultadoMarca.ok ||
+        respuesta.resultado == ResultadoMarca.valeCobrado;
+    if (bien) {
       await HapticFeedback.mediumImpact();
     } else {
       await HapticFeedback.heavyImpact();
@@ -49,17 +62,16 @@ class _ScanScreenState extends State<ScanScreen> {
     }
 
     if (!mounted) return;
-    setState(() {
-      _resultado = resultado;
-      _ticket = ticket;
-    });
+    setState(() => _respuesta = respuesta);
 
-    // Vuelve a leer solo: nadie tiene una mano libre para tocar «siguiente».
-    await Future<void>.delayed(const Duration(milliseconds: 1600));
+    // En la caja la pantalla la cierra quien atiende: recién cobró plata y tiene que leer si
+    // falta efectivo. En la fila vuelve sola, porque nadie tiene una mano libre para tocar.
+    if (_enCaja) return;
+
+    await Future<void>.delayed(esperaAntesDeSeguir);
     if (!mounted) return;
     setState(() {
-      _resultado = null;
-      _ticket = null;
+      _respuesta = null;
       _procesando = false;
     });
   }
@@ -91,27 +103,16 @@ class _ScanScreenState extends State<ScanScreen> {
     );
 
     if (codigo == null || codigo.trim().isEmpty) return;
-    setState(() => _procesando = true);
-    final (resultado, ticket) = await widget.estado.marcar(codigo);
-    if (!mounted) return;
-    setState(() {
-      _resultado = resultado;
-      _ticket = ticket;
-    });
-    await Future<void>.delayed(const Duration(milliseconds: 2200));
-    if (!mounted) return;
-    setState(() {
-      _resultado = null;
-      _ticket = null;
-      _procesando = false;
-    });
+    await _marcar(codigo, esperaAntesDeSeguir: const Duration(milliseconds: 2200));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Escanear QR'),
+        title: Text(_enCaja
+            ? (widget.monto == null ? 'Cobrar el vale completo' : 'Cobrar ${pesos(widget.monto!)}')
+            : 'Escanear QR'),
         actions: [
           IconButton(
             onPressed: _pedirCodigo,
@@ -128,17 +129,29 @@ class _ScanScreenState extends State<ScanScreen> {
       body: Stack(
         children: [
           MobileScanner(controller: _camara, onDetect: _alLeer),
-          if (_resultado != null)
-            _Veredicto(resultado: _resultado!, ticket: _ticket,
-                       horaCopia: widget.estado.horaDeLaCopia),
-          if (_resultado == null)
-            const Align(
+          if (_respuesta != null)
+            GestureDetector(
+              // Solo cierra al tocar en la caja; en la fila la pantalla se va sola y un toque
+              // accidental no debe adelantar al siguiente comensal.
+              onTap: _enCaja ? () => Navigator.of(context).pop(_respuesta) : null,
+              child: _Veredicto(
+                respuesta: _respuesta!,
+                enCaja: _enCaja,
+                montoPedido: widget.monto,
+                horaCopia: widget.estado.horaDeLaCopia,
+              ),
+            ),
+          if (_respuesta == null)
+            Align(
               alignment: Alignment.bottomCenter,
               child: Padding(
-                padding: EdgeInsets.all(28),
+                padding: const EdgeInsets.all(28),
                 child: Text(
-                  'Apunta al QR del comensal · el teclado de arriba es para dictar el código',
-                  style: TextStyle(
+                  _enCaja
+                      ? 'Apunta al QR del vale · el teclado de arriba es para dictar el código'
+                      : 'Apunta al QR del comensal · el teclado de arriba es para dictar el código',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
                       color: Colors.white, fontSize: 16, backgroundColor: Colors.black54),
                 ),
               ),
@@ -151,126 +164,193 @@ class _ScanScreenState extends State<ScanScreen> {
 
 /// La respuesta grande: color, título y a quién pertenece el ticket.
 class _Veredicto extends StatelessWidget {
-  const _Veredicto({required this.resultado, this.ticket, this.horaCopia});
+  const _Veredicto({
+    required this.respuesta,
+    required this.enCaja,
+    this.montoPedido,
+    this.horaCopia,
+  });
 
-  final ResultadoMarca resultado;
-  final Ticket? ticket;
+  final RespuestaMarca respuesta;
+  final bool enCaja;
+  final num? montoPedido;
   final String? horaCopia;
+
+  static const _verde = Color(0xFF146C4E);
+  static const _naranjo = Color(0xFFC2410C);
+  static const _rojo = Color(0xFFC0392B);
 
   @override
   Widget build(BuildContext context) {
-    final (color, icono, titulo) = switch (resultado) {
-      ResultadoMarca.ok => (const Color(0xFF146C4E), Icons.check_circle, 'Puede pasar'),
-      ResultadoMarca.yaConsumido => (const Color(0xFFC2410C), Icons.info, 'Ya fue servido'),
-      ResultadoMarca.anulado => (const Color(0xFFC0392B), Icons.cancel, 'Ticket anulado'),
-      ResultadoMarca.otroDia => (const Color(0xFFC0392B), Icons.event_busy, 'No es de hoy o de este casino'),
-      ResultadoMarca.fueraDeLaCopia => (const Color(0xFFC0392B), Icons.help_outline,
-          'No está en la lista de hoy'),
-      ResultadoMarca.sinConexion => (const Color(0xFFC0392B), Icons.wifi_off,
-          'Sin conexión y sin copia del día'),
-      ResultadoMarca.desactivado => (const Color(0xFFC0392B), Icons.person_off,
-          'Su empresa lo desactivó'),
-      ResultadoMarca.valeCobrado => (const Color(0xFF146C4E), Icons.check_circle,
-          'Vale cobrado · puede pasar'),
-      ResultadoMarca.valeYaUsado => (const Color(0xFFC2410C), Icons.info, 'Ese vale ya se usó'),
-      ResultadoMarca.valeReservado => (const Color(0xFFC2410C), Icons.restaurant,
-          'Tiene almuerzo reservado con este ticket'),
-      ResultadoMarca.sinTicket => (const Color(0xFFC0392B), Icons.confirmation_number_outlined,
-          'Anotado, pero sin ticket'),
-      ResultadoMarca.noExiste => (const Color(0xFFC0392B), Icons.help, 'Ticket desconocido'),
+    final ticket = respuesta.ticket;
+    final (color, icono, titulo) = switch (respuesta.resultado) {
+      ResultadoMarca.ok => (_verde, Icons.check_circle, 'Puede pasar'),
+      ResultadoMarca.yaConsumido => (_naranjo, Icons.info, 'Ya fue servido'),
+      ResultadoMarca.anulado => (_rojo, Icons.cancel, 'Ticket anulado'),
+      ResultadoMarca.otroDia => (_rojo, Icons.event_busy, 'No es de hoy o de este casino'),
+      ResultadoMarca.fueraDeLaCopia => (_rojo, Icons.help_outline, 'No está en la lista de hoy'),
+      ResultadoMarca.sinConexion => (
+          _rojo,
+          Icons.wifi_off,
+          enCaja ? 'Sin conexión: no se puede cobrar' : 'Sin conexión y sin copia del día'
+        ),
+      ResultadoMarca.desactivado => (_rojo, Icons.person_off, 'Su empresa lo desactivó'),
+      ResultadoMarca.valeCobrado => (
+          _verde,
+          Icons.check_circle,
+          respuesta.monto == null ? 'Vale cobrado' : 'Cobrado ${pesos(respuesta.monto!)}'
+        ),
+      ResultadoMarca.valeYaUsado => (_naranjo, Icons.info, 'Ese vale ya se usó'),
+      ResultadoMarca.valeReservado => (
+          _naranjo,
+          Icons.restaurant,
+          'Tiene almuerzo reservado con este ticket'
+        ),
+      ResultadoMarca.sinTicket => (
+          _rojo,
+          Icons.confirmation_number_outlined,
+          'Anotado, pero sin ticket'
+        ),
+      ResultadoMarca.soloParaAlmuerzo => (_rojo, Icons.no_food, 'Sirve solo para el almuerzo'),
+      ResultadoMarca.vencido => (_rojo, Icons.event_busy, 'Ticket vencido'),
+      ResultadoMarca.noExiste => (_rojo, Icons.help, 'Ticket desconocido'),
     };
 
     return Container(
       color: color,
       alignment: Alignment.center,
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icono, color: Colors.white, size: 84),
-            const SizedBox(height: 12),
-            Text(titulo,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800)),
-            if (resultado == ResultadoMarca.desactivado)
-              const Padding(
-                padding: EdgeInsets.only(top: 12),
-                child: Text(
-                  'Que hable con quien administra el casino en su empresa.',
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icono, color: Colors.white, size: 84),
+              const SizedBox(height: 12),
+              Text(titulo,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
-              ),
-            if (resultado == ResultadoMarca.sinTicket)
-              const Padding(
-                padding: EdgeInsets.only(top: 12),
-                child: Text(
-                  'Su empresa todavía no le entrega el ticket. No se le sirve.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
-              ),
-            if (resultado == ResultadoMarca.valeReservado)
-              const Padding(
-                padding: EdgeInsets.only(top: 12),
-                child: Text(
-                  'Sírvele en la fila; acá no se cobra.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
-              ),
-            if (resultado == ResultadoMarca.valeCobrado)
-              const Padding(
-                padding: EdgeInsets.only(top: 12),
-                child: Text(
-                  'Es un ticket acumulado, no una inscripción del día: no trae plato elegido.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
-              ),
-            if (resultado == ResultadoMarca.fueraDeLaCopia)
-              Padding(
-                padding: const EdgeInsets.only(top: 14),
-                child: Text(
-                  'La copia es de las ${horaCopia ?? '—'}. Si la persona se anotó después, '
-                  'actualiza; si no, el código no corresponde a este día.',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white, fontSize: 15),
-                ),
-              ),
-            if (ticket != null) ...[
-              const SizedBox(height: 18),
-              Text(ticket!.persona,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white, fontSize: 22)),
-              Text(
-                [ticket!.empresa, ticket!.opcion].where((t) => t != null && t.isNotEmpty).join(' · '),
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white70, fontSize: 16),
-              ),
-              Text(ticket!.codigoLegible,
                   style: const TextStyle(
-                      color: Colors.white70, fontSize: 16, fontFamily: 'monospace')),
-              if (ticket!.comentario != null && ticket!.comentario!.isNotEmpty)
+                      color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800)),
+              for (final linea in _explicacion())
                 Padding(
-                  padding: const EdgeInsets.only(top: 10),
-                  child: Text('Observación: ${ticket!.comentario}',
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(linea,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.white, fontSize: 15)),
+                      style: const TextStyle(color: Colors.white, fontSize: 16)),
                 ),
-              if (resultado == ResultadoMarca.yaConsumido && ticket!.consumidoUtc != null)
+              if (_efectivoQueFalta() case final falta?)
                 Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text('Se sirvió a las ${_hora(ticket!.consumidoUtc!)}',
-                      style: const TextStyle(color: Colors.white70)),
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text('Cobra ${pesos(falta)} en efectivo',
+                        style: TextStyle(
+                            color: color, fontSize: 24, fontWeight: FontWeight.w800)),
+                  ),
+                ),
+              if (respuesta.nombre case final nombre? when nombre.isNotEmpty) ...[
+                const SizedBox(height: 18),
+                Text(nombre,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.white, fontSize: 22)),
+              ],
+              if (ticket != null) ...[
+                Text(
+                  [ticket.empresa, ticket.opcion]
+                      .where((t) => t != null && t.isNotEmpty)
+                      .join(' · '),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white70, fontSize: 16),
+                ),
+                Text(ticket.codigoLegible,
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 16, fontFamily: 'monospace')),
+                if (ticket.comentario != null && ticket.comentario!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Text('Observación: ${ticket.comentario}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white, fontSize: 15)),
+                  ),
+                if (respuesta.resultado == ResultadoMarca.yaConsumido &&
+                    ticket.consumidoUtc != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text('Se sirvió a las ${_hora(ticket.consumidoUtc!)}',
+                        style: const TextStyle(color: Colors.white70)),
+                  ),
+              ],
+              if (enCaja)
+                const Padding(
+                  padding: EdgeInsets.only(top: 22),
+                  child: Text('Toca para seguir',
+                      style: TextStyle(color: Colors.white70, fontSize: 15)),
                 ),
             ],
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  /// Lo que hay que hacer, en una frase. Nada de explicar el sistema: en el mesón se lee de
+  /// pie y con gente esperando.
+  List<String> _explicacion() => switch (respuesta.resultado) {
+        ResultadoMarca.desactivado => [
+            'Que hable con quien administra el casino en su empresa.'
+          ],
+        ResultadoMarca.sinTicket => [
+            'Su empresa todavía no le entrega el ticket. No se le sirve.'
+          ],
+        ResultadoMarca.valeReservado => [
+            enCaja
+                ? 'Su almuerzo está reservado con este ticket: acá no se cobra.'
+                : 'Sírvele en la fila; acá no se cobra.'
+          ],
+        ResultadoMarca.soloParaAlmuerzo => [
+            'Su empresa lo convino solo para el almuerzo. Si lleva otra cosa, se paga aparte.'
+          ],
+        ResultadoMarca.vencido => ['Ya no sirve. Su empresa tiene que entregarle otro.'],
+        ResultadoMarca.valeYaUsado => [
+            if (respuesta.monto != null) 'Se gastó ${pesos(respuesta.monto!)}.',
+          ],
+        ResultadoMarca.sinConexion => [
+            if (enCaja) 'Cóbralo en efectivo: sin servidor no hay cómo saber si el vale sirve.',
+          ],
+        ResultadoMarca.valeCobrado => [
+            if (_saldoQueSePierde() case final saldo?)
+              'El vale era de ${pesos(respuesta.valor!)} y se gasta completo: '
+                  'los ${pesos(saldo)} de diferencia no se devuelven.'
+            else if (!enCaja)
+              'Es un ticket acumulado, no una inscripción del día: no trae plato elegido.',
+          ],
+        ResultadoMarca.fueraDeLaCopia => [
+            'La copia es de las ${horaCopia ?? '—'}. Si la persona se anotó después, '
+                'actualiza; si no, el código no corresponde a este día.'
+          ],
+        _ => const [],
+      };
+
+  /// Lo que la compra se pasó del valor del ticket: eso lo paga la persona.
+  num? _efectivoQueFalta() {
+    if (respuesta.resultado != ResultadoMarca.valeCobrado) return null;
+    final pedido = montoPedido;
+    final valor = respuesta.valor;
+    if (pedido == null || valor == null || pedido <= valor) return null;
+    return pedido - valor;
+  }
+
+  /// Lo que quedaba en el ticket y se pierde, cuando la compra fue menor que su valor.
+  num? _saldoQueSePierde() {
+    if (!enCaja) return null;
+    final cobrado = respuesta.monto;
+    final valor = respuesta.valor;
+    if (cobrado == null || valor == null || valor <= cobrado) return null;
+    return valor - cobrado;
   }
 
   /// Hora local del equipo: el servidor guarda en UTC y el mesón piensa en hora de Chile.

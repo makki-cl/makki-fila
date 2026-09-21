@@ -4,6 +4,13 @@ import 'api/api_client.dart';
 import 'api/models.dart';
 import 'data/local_store.dart';
 
+/// En qué está atendiendo el equipo.
+///
+/// No es un detalle de pantalla: en la fila se entrega el almuerzo del día y en la caja se
+/// gasta el ticket en otros productos. El informe del mes los separa, así que el equipo tiene
+/// que declarar en cuál está antes de marcar.
+enum ModoMeson { fila, caja }
+
 /// Estado de la app. Manda la copia local: se marca contra ella y el servidor se entera
 /// después. Así la fila nunca se detiene porque el wifi del casino se cayó.
 class AppState extends ChangeNotifier {
@@ -14,6 +21,7 @@ class AppState extends ChangeNotifier {
   String? baseUrl;
   String? _token;
   String operador = '';
+  ModoMeson modo = ModoMeson.fila;
   Sesion? sesion;
   DiaDeTrabajo? dia;
   List<MarcaPendiente> cola = [];
@@ -29,6 +37,7 @@ class AppState extends ChangeNotifier {
     baseUrl = await _store.baseUrl();
     _token = await _store.token();
     operador = await _store.operador();
+    modo = await _store.modo() == ModoMeson.caja.name ? ModoMeson.caja : ModoMeson.fila;
     cola = await _store.cola();
     dia = await _store.diaGuardado();
     notifyListeners();
@@ -61,6 +70,12 @@ class AppState extends ChangeNotifier {
       cargando = false;
       notifyListeners();
     }
+  }
+
+  Future<void> cambiarModo(ModoMeson nuevo) async {
+    modo = nuevo;
+    await _store.guardarModo(nuevo.name);
+    notifyListeners();
   }
 
   Future<void> guardarOperador(String nombre) async {
@@ -97,35 +112,54 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Marca un ticket. Intenta el servidor; si no hay red, lo deja en la cola y sigue.
-  Future<(ResultadoMarca, Ticket?)> marcar(String lectura) async {
+  /// Marca un ticket.
+  ///
+  /// En la fila manda la copia local y, si no hay señal, la marca se encola: el almuerzo ya
+  /// está cocinado y detener la fila por el wifi no arregla nada.
+  ///
+  /// En la caja es al revés. Un vale no viene en la copia del día —no cuelga de ninguna
+  /// minuta— así que sin servidor no hay forma de saber si está vigente o ya se gastó, y
+  /// cobrarlo a ciegas sería entregar productos contra un ticket que quizá no existe. Sin
+  /// señal, la caja cobra en efectivo.
+  Future<RespuestaMarca> marcar(String lectura, {num? monto}) async {
+    if (modo == ModoMeson.caja) {
+      try {
+        return await _api.marcar(lectura, _operadorOEquipo, enCaja: true, monto: monto);
+      } catch (_) {
+        return const RespuestaMarca(ResultadoMarca.sinConexion);
+      }
+    }
+
     final local = _buscarEn(dia, lectura);
 
     // Lo que ya sabemos por la copia local se responde al tiro: es el caso más común en la
     // fila y no tiene sentido esperar al servidor para decir «este ticket ya se sirvió».
     if (local != null && local.estado == EstadoTicket.anulado) {
-      return (ResultadoMarca.anulado, local);
+      return RespuestaMarca(ResultadoMarca.anulado, ticket: local);
     }
     if (local != null && local.estado == EstadoTicket.servido) {
-      return (ResultadoMarca.yaConsumido, local);
+      return RespuestaMarca(ResultadoMarca.yaConsumido, ticket: local);
     }
 
     try {
-      final (resultado, ticket) = await _api.marcar(lectura, _operadorOEquipo);
-      if (resultado == ResultadoMarca.ok && local != null) {
+      final r = await _api.marcar(lectura, _operadorOEquipo);
+      if (r.resultado == ResultadoMarca.ok && local != null) {
         local.estado = EstadoTicket.servido;
-        local.consumidoUtc = ticket?.consumidoUtc ?? DateTime.now().toUtc();
+        local.consumidoUtc = r.ticket?.consumidoUtc ?? DateTime.now().toUtc();
         await _store.guardarDia(dia!);
       }
       notifyListeners();
-      return (resultado, ticket ?? local);
+      if (r.ticket != null || local == null) return r;
+      return RespuestaMarca(r.resultado,
+          ticket: local, persona: r.persona, monto: r.monto, valor: r.valor);
     } catch (_) {
       // Sin señal: se marca localmente y se encola. La hora que queda es esta, la real.
       if (local == null) {
         // Se distingue el caso: si hay copia del día bajada, el problema no es la red —
         // ese ticket no está en la lista. Decir "sin conexión" haría que el mesón deje
         // pasar a alguien pensando que es culpa del wifi.
-        return (dia == null ? ResultadoMarca.sinConexion : ResultadoMarca.fueraDeLaCopia, null);
+        return RespuestaMarca(
+            dia == null ? ResultadoMarca.sinConexion : ResultadoMarca.fueraDeLaCopia);
       }
 
       local.estado = EstadoTicket.servido;
@@ -141,7 +175,7 @@ class AppState extends ChangeNotifier {
       await _store.guardarDia(dia!);
       await _store.guardarCola(cola);
       notifyListeners();
-      return (ResultadoMarca.ok, local);
+      return RespuestaMarca(ResultadoMarca.ok, ticket: local);
     }
   }
 

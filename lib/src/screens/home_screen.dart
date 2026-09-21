@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/models.dart';
 import '../app_state.dart';
+import 'caja_screen.dart';
 import 'list_screen.dart';
 import 'scan_screen.dart';
 
@@ -66,7 +67,17 @@ class HomeScreen extends StatelessWidget {
                 texto: '${estado.pendientes} marca(s) sin enviar. Se guardaron acá y se '
                     'mandarán solas al recuperar señal.',
               ),
-            if (dia == null)
+            _SelectorDeModo(estado: estado),
+            const SizedBox(height: 16),
+            if (estado.modo == ModoMeson.caja)
+              const _Aviso(
+                color: Color(0xFFF1F5F9),
+                borde: Color(0xFF123528),
+                icono: Icons.point_of_sale,
+                texto: 'Este equipo está cobrando vales en la caja. Los almuerzos de la minuta '
+                    'se marcan desde el modo fila.',
+              )
+            else if (dia == null)
               const _Aviso(
                 color: Color(0xFFFDECEA),
                 borde: Color(0xFFC0392B),
@@ -94,19 +105,30 @@ class HomeScreen extends StatelessWidget {
               ],
             ],
             const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: dia == null ? null : () => _abrir(context, ScanScreen(estado: estado)),
-              style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 22)),
-              icon: const Icon(Icons.qr_code_scanner, size: 28),
-              label: const Text('Escanear QR', style: TextStyle(fontSize: 18)),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: dia == null ? null : () => _abrir(context, ListScreen(estado: estado)),
-              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 18)),
-              icon: const Icon(Icons.list_alt),
-              label: const Text('Lista de anotados', style: TextStyle(fontSize: 16)),
-            ),
+            if (estado.modo == ModoMeson.caja)
+              // La caja no depende de la copia del día: un vale no cuelga de ninguna minuta,
+              // así que se puede cobrar aunque hoy no haya menú publicado.
+              FilledButton.icon(
+                onPressed: () => _abrir(context, CajaScreen(estado: estado)),
+                style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 22)),
+                icon: const Icon(Icons.point_of_sale, size: 28),
+                label: const Text('Cobrar en la caja', style: TextStyle(fontSize: 18)),
+              )
+            else ...[
+              FilledButton.icon(
+                onPressed: dia == null ? null : () => _abrir(context, ScanScreen(estado: estado)),
+                style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 22)),
+                icon: const Icon(Icons.qr_code_scanner, size: 28),
+                label: const Text('Escanear QR', style: TextStyle(fontSize: 18)),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: dia == null ? null : () => _abrir(context, ListScreen(estado: estado)),
+                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 18)),
+                icon: const Icon(Icons.list_alt),
+                label: const Text('Lista de anotados', style: TextStyle(fontSize: 16)),
+              ),
+            ],
             if (estado.error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 16),
@@ -144,6 +166,33 @@ class HomeScreen extends StatelessWidget {
     );
     if (nombre != null) await estado.guardarOperador(nombre);
   }
+}
+
+/// Fila o caja. Está arriba de todo y siempre a la vista porque de esto depende qué queda
+/// registrado: un ticket marcado en el modo equivocado ensucia el informe del mes.
+class _SelectorDeModo extends StatelessWidget {
+  const _SelectorDeModo({required this.estado});
+
+  final AppState estado;
+
+  @override
+  Widget build(BuildContext context) => SegmentedButton<ModoMeson>(
+        segments: const [
+          ButtonSegment(
+            value: ModoMeson.fila,
+            icon: Icon(Icons.restaurant),
+            label: Text('Fila'),
+          ),
+          ButtonSegment(
+            value: ModoMeson.caja,
+            icon: Icon(Icons.point_of_sale),
+            label: Text('Caja'),
+          ),
+        ],
+        selected: {estado.modo},
+        onSelectionChanged: (s) => estado.cambiarModo(s.first),
+        showSelectedIcon: false,
+      );
 }
 
 class _Contador extends StatelessWidget {

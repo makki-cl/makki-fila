@@ -57,8 +57,12 @@ class ApiClient {
     return DiaDeTrabajo.desdeJson(jsonDecode(utf8.decode(r.bodyBytes)) as Map<String, dynamic>);
   }
 
-  Future<(ResultadoMarca, Ticket?)> marcar(String ticket, String operador,
-      {DateTime? cuandoUtc}) async {
+  /// Marca un ticket. [enCaja] cambia lo que el servidor registra: en la caja el ticket se
+  /// gasta en otros productos, no en el almuerzo, y el informe del mes tiene que separarlos.
+  /// [monto] es el total de la compra; si supera el valor del ticket, el servidor cobra solo
+  /// hasta ahí y la diferencia la paga la persona.
+  Future<RespuestaMarca> marcar(String ticket, String operador,
+      {DateTime? cuandoUtc, bool enCaja = false, num? monto}) async {
     final r = await http
         .post(
           _uri('/api/line/consume'),
@@ -67,6 +71,8 @@ class ApiClient {
             'ticket': ticket,
             'operator': operador,
             if (cuandoUtc != null) 'atUtc': cuandoUtc.toIso8601String(),
+            if (enCaja) 'enCaja': true,
+            if (monto != null) 'monto': monto,
           }),
         )
         .timeout(_tiempoLimite);
@@ -75,7 +81,7 @@ class ApiClient {
 
     final j = jsonDecode(utf8.decode(r.bodyBytes)) as Map<String, dynamic>;
     final t = j['ticket'] == null ? null : Ticket.desdeJson(j['ticket'] as Map<String, dynamic>);
-    return (_interpretar(j['status'] as String?), t);
+    return RespuestaMarca.desdeJson(j, _interpretar(j['status'] as String?), t);
   }
 
   /// Envía de una vez lo marcado sin señal, con la hora real de cada marca.
@@ -106,6 +112,8 @@ class ApiClient {
         'ValeYaUsado' => ResultadoMarca.valeYaUsado,
         'ValeReservado' => ResultadoMarca.valeReservado,
         'SinTicket' => ResultadoMarca.sinTicket,
+        'SoloParaAlmuerzo' => ResultadoMarca.soloParaAlmuerzo,
+        'Vencido' => ResultadoMarca.vencido,
         _ => ResultadoMarca.noExiste,
       };
 }

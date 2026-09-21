@@ -130,7 +130,8 @@ class _ListScreenState extends State<ListScreen> {
     );
     if (confirmado != true) return;
 
-    final (resultado, _) = await widget.estado.marcar(t.token.isNotEmpty ? t.token : t.codigo);
+    final resultado =
+        (await widget.estado.marcar(t.token.isNotEmpty ? t.token : t.codigo)).resultado;
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -144,6 +145,7 @@ class _ListScreenState extends State<ListScreen> {
         ResultadoMarca.valeYaUsado => 'Ese vale ya se usó',
         ResultadoMarca.valeReservado => '${t.persona} tiene almuerzo reservado con ese ticket',
         ResultadoMarca.sinTicket => '${t.persona} está anotado pero sin ticket',
+        ResultadoMarca.vencido => 'Ese ticket está vencido',
         _ => 'No se pudo marcar',
       }),
     ));
