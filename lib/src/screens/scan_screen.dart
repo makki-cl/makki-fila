@@ -173,6 +173,8 @@ class _Veredicto extends StatelessWidget {
       ResultadoMarca.valeCobrado => (const Color(0xFF146C4E), Icons.check_circle,
           'Vale cobrado · puede pasar'),
       ResultadoMarca.valeYaUsado => (const Color(0xFFC2410C), Icons.info, 'Ese vale ya se usó'),
+      ResultadoMarca.valeReservado => (const Color(0xFFC2410C), Icons.restaurant,
+          'Tiene almuerzo reservado con este ticket'),
       ResultadoMarca.noExiste => (const Color(0xFFC0392B), Icons.help, 'Ticket desconocido'),
     };
 
@@ -195,6 +197,15 @@ class _Veredicto extends StatelessWidget {
                 padding: EdgeInsets.only(top: 12),
                 child: Text(
                   'Que hable con quien administra el casino en su empresa.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ),
+            if (resultado == ResultadoMarca.valeReservado)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: Text(
+                  'Sírvele en la fila; acá no se cobra.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.white, fontSize: 16),
                 ),

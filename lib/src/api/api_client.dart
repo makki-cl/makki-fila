@@ -104,6 +104,7 @@ class ApiClient {
         'Desactivado' => ResultadoMarca.desactivado,
         'ValeCobrado' => ResultadoMarca.valeCobrado,
         'ValeYaUsado' => ResultadoMarca.valeYaUsado,
+        'ValeReservado' => ResultadoMarca.valeReservado,
         _ => ResultadoMarca.noExiste,
       };
 }
