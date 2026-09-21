@@ -105,6 +105,7 @@ class ApiClient {
         'ValeCobrado' => ResultadoMarca.valeCobrado,
         'ValeYaUsado' => ResultadoMarca.valeYaUsado,
         'ValeReservado' => ResultadoMarca.valeReservado,
+        'SinTicket' => ResultadoMarca.sinTicket,
         _ => ResultadoMarca.noExiste,
       };
 }

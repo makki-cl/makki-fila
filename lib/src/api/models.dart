@@ -201,6 +201,8 @@ enum ResultadoMarca {
   valeYaUsado,
   /// El ticket está comprometido con el almuerzo de hoy: se sirve en la fila, no se cobra.
   valeReservado,
+  /// Se anotó pero su empresa todavía no le entrega el ticket.
+  sinTicket,
   /// Sin señal y el ticket no está en la copia del día: puede ser falso, de otro casino,
   /// o de alguien que se anotó después de la última descarga. No es un problema de red.
   fueraDeLaCopia,
