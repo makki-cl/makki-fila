@@ -168,6 +168,11 @@ class _Veredicto extends StatelessWidget {
           'No está en la lista de hoy'),
       ResultadoMarca.sinConexion => (const Color(0xFFC0392B), Icons.wifi_off,
           'Sin conexión y sin copia del día'),
+      ResultadoMarca.desactivado => (const Color(0xFFC0392B), Icons.person_off,
+          'Su empresa lo desactivó'),
+      ResultadoMarca.valeCobrado => (const Color(0xFF146C4E), Icons.check_circle,
+          'Vale cobrado · puede pasar'),
+      ResultadoMarca.valeYaUsado => (const Color(0xFFC2410C), Icons.info, 'Ese vale ya se usó'),
       ResultadoMarca.noExiste => (const Color(0xFFC0392B), Icons.help, 'Ticket desconocido'),
     };
 
@@ -185,6 +190,24 @@ class _Veredicto extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                     color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800)),
+            if (resultado == ResultadoMarca.desactivado)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: Text(
+                  'Que hable con quien administra el casino en su empresa.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ),
+            if (resultado == ResultadoMarca.valeCobrado)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: Text(
+                  'Es un ticket acumulado, no una inscripción del día: no trae plato elegido.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+              ),
             if (resultado == ResultadoMarca.fueraDeLaCopia)
               Padding(
                 padding: const EdgeInsets.only(top: 14),

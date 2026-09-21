@@ -192,6 +192,13 @@ enum ResultadoMarca {
   anulado,
   noExiste,
   otroDia,
+  /// Su empresa lo desactivó. El ticket es válido, pero no se le sirve: casi siempre es
+  /// alguien que ya no trabaja ahí.
+  desactivado,
+  /// Lo presentado era un vale acumulado y quedó cobrado.
+  valeCobrado,
+  /// El vale existe pero ya se había gastado.
+  valeYaUsado,
   /// Sin señal y el ticket no está en la copia del día: puede ser falso, de otro casino,
   /// o de alguien que se anotó después de la última descarga. No es un problema de red.
   fueraDeLaCopia,

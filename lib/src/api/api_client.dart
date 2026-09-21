@@ -94,11 +94,16 @@ class ApiClient {
     return (j['applied'] as num?)?.toInt() ?? 0;
   }
 
+  /// Traduce el estado que manda el servidor. Lo que no se reconoce se trata como «no
+  /// existe», que es el mensaje más seguro: nunca hace servir un almuerzo por equivocación.
   static ResultadoMarca _interpretar(String? estado) => switch (estado) {
         'Ok' => ResultadoMarca.ok,
         'AlreadyConsumed' => ResultadoMarca.yaConsumido,
         'Cancelled' => ResultadoMarca.anulado,
         'WrongDay' => ResultadoMarca.otroDia,
+        'Desactivado' => ResultadoMarca.desactivado,
+        'ValeCobrado' => ResultadoMarca.valeCobrado,
+        'ValeYaUsado' => ResultadoMarca.valeYaUsado,
         _ => ResultadoMarca.noExiste,
       };
 }

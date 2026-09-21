@@ -15,8 +15,15 @@ class EnrollScreen extends StatefulWidget {
 
 class _EnrollScreenState extends State<EnrollScreen> {
   // Dirección por defecto: hoy el sistema se alcanza por IP, sin dominio ni certificado.
-  // Cuando dev.makki.cl resuelva, cambiar por https://dev.makki.cl.
-  final _url = TextEditingController(text: 'http://38.7.207.23');
+  // Producción. La API de la fila vive detrás de admin.makki.cl, que es el dominio del panel;
+  // casino.makki.cl solo expone lo del comensal.
+  //
+  // La compilación puede sobreescribirlo (--dart-define=MAKKI_BASE_URL=...), que es como se
+  // arma un APK apuntando al servidor de pruebas sin tocar el código. El valor de acá es el
+  // que corre cuando no se define nada.
+  final _url = TextEditingController(
+    text: const String.fromEnvironment('MAKKI_BASE_URL', defaultValue: 'https://admin.makki.cl'),
+  );
   final _codigo = TextEditingController();
 
   @override
