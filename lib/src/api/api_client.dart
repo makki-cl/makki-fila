@@ -84,6 +84,52 @@ class ApiClient {
     return RespuestaMarca.desdeJson(j, _interpretar(j['status'] as String?), t);
   }
 
+  /// Anota a alguien desde el mesón. [sobrecupo] suma una ración cuando la opción está llena.
+  Future<RespuestaAnotar> anotar({
+    required String menuItemId,
+    required String nombre,
+    String? empresaId,
+    String? otraEmpresa,
+    String? correo,
+    String? comentario,
+    bool paraLlevar = false,
+    bool sobrecupo = false,
+    String? operador,
+  }) async {
+    final r = await http
+        .post(
+          _uri('/api/line/anotar'),
+          headers: _cabeceras,
+          body: jsonEncode({
+            'menuItemId': menuItemId,
+            'personName': nombre,
+            if (empresaId != null) 'clientId': empresaId,
+            if (otraEmpresa != null && otraEmpresa.isNotEmpty) 'otherClientName': otraEmpresa,
+            if (correo != null && correo.isNotEmpty) 'email': correo,
+            if (comentario != null && comentario.isNotEmpty) 'comment': comentario,
+            'paraLlevar': paraLlevar,
+            'sobrecupo': sobrecupo,
+            if (operador != null) 'operator': operador,
+          }),
+        )
+        .timeout(_tiempoLimite);
+
+    if (r.statusCode != 200) {
+      final j = jsonDecode(utf8.decode(r.bodyBytes)) as Map<String, dynamic>;
+      return RespuestaAnotar(ResultadoAnotar.error, mensaje: j['error'] as String?);
+    }
+
+    final j = jsonDecode(utf8.decode(r.bodyBytes)) as Map<String, dynamic>;
+    return switch (j['status'] as String?) {
+      'Ok' => RespuestaAnotar(ResultadoAnotar.ok,
+          codigo: (j['ticket'] as Map<String, dynamic>?)?['code'] as String?,
+          sobrecupo: j['sobrecupo'] as bool? ?? false),
+      'SinCupo' => RespuestaAnotar(ResultadoAnotar.sinCupo, mensaje: j['mensaje'] as String?),
+      'MenuClosed' => const RespuestaAnotar(ResultadoAnotar.cerrada),
+      _ => RespuestaAnotar(ResultadoAnotar.error, mensaje: j['mensaje'] as String?),
+    };
+  }
+
   /// Envía de una vez lo marcado sin señal, con la hora real de cada marca.
   ///
   /// Devuelve cuántas entraron y cuántas el servidor no pudo aplicar. Lo segundo importa: una

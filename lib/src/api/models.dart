@@ -127,6 +127,31 @@ class Ticket {
       };
 }
 
+/// Una empresa elegible al anotar a alguien en el mesón.
+class EmpresaDelDia {
+  const EmpresaDelDia({required this.id, required this.nombre});
+
+  final String id;
+  final String nombre;
+
+  factory EmpresaDelDia.desdeJson(Map<String, dynamic> j) =>
+      EmpresaDelDia(id: j['id'] as String, nombre: j['name'] as String? ?? '');
+
+  Map<String, dynamic> aJson() => {'id': id, 'name': nombre};
+}
+
+/// Cómo salió anotar a alguien desde el mesón.
+enum ResultadoAnotar { ok, sinCupo, cerrada, error, sinConexion }
+
+class RespuestaAnotar {
+  const RespuestaAnotar(this.resultado, {this.codigo, this.sobrecupo = false, this.mensaje});
+
+  final ResultadoAnotar resultado;
+  final String? codigo;
+  final bool sobrecupo;
+  final String? mensaje;
+}
+
 class DiaDeTrabajo {
   DiaDeTrabajo({
     required this.fecha,
@@ -136,6 +161,7 @@ class DiaDeTrabajo {
     required this.opciones,
     required this.tickets,
     required this.bajadoUtc,
+    this.empresas = const [],
   });
 
   final String fecha;
@@ -144,6 +170,10 @@ class DiaDeTrabajo {
   final String? nota;
   final List<OpcionMenu> opciones;
   final List<Ticket> tickets;
+
+  /// Las empresas que se pueden elegir al anotar a alguien. Vienen en la descarga del día
+  /// para poder anotar aunque se caiga el wifi.
+  final List<EmpresaDelDia> empresas;
 
   /// Cuándo se bajó esta copia: la app avisa si está vieja.
   final DateTime bajadoUtc;
@@ -164,6 +194,9 @@ class DiaDeTrabajo {
             .map((t) => Ticket.desdeJson(t as Map<String, dynamic>))
             .toList(),
         bajadoUtc: DateTime.now().toUtc(),
+        empresas: ((j['clients'] as List?) ?? [])
+            .map((c) => EmpresaDelDia.desdeJson(c as Map<String, dynamic>))
+            .toList(),
       );
 
   Map<String, dynamic> aJson() => {
@@ -175,6 +208,7 @@ class DiaDeTrabajo {
             .map((o) => {'id': o.id, 'name': o.nombre, 'quota': o.cupo, 'reserved': o.tomados})
             .toList(),
         'tickets': tickets.map((t) => t.aJson()).toList(),
+        'clients': empresas.map((c) => c.aJson()).toList(),
         'cachedAt': bajadoUtc.toIso8601String(),
       };
 }

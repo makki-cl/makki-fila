@@ -270,6 +270,36 @@ class AppState extends ChangeNotifier {
   /// siguiente intento. Lo que el servidor rechazó también se saca —reintentarlo daría el
   /// mismo rechazo para siempre— pero se informa, porque alguien tiene que saber que ese
   /// almuerzo no quedó registrado.
+  /// Anota a alguien en el mesón. Sin señal no se puede: el cupo vive en el servidor y
+  /// anotar a ciegas dos veces la misma ración es cocinar de menos.
+  Future<RespuestaAnotar> anotar({
+    required String menuItemId,
+    required String nombre,
+    String? empresaId,
+    String? otraEmpresa,
+    String? correo,
+    bool paraLlevar = false,
+    bool sobrecupo = false,
+  }) async {
+    if (!enrolado) return const RespuestaAnotar(ResultadoAnotar.sinConexion);
+    try {
+      final r = await _api.anotar(
+        menuItemId: menuItemId,
+        nombre: nombre,
+        empresaId: empresaId,
+        otraEmpresa: otraEmpresa,
+        correo: correo,
+        paraLlevar: paraLlevar,
+        sobrecupo: sobrecupo,
+        operador: _operadorOEquipo,
+      );
+      if (r.resultado == ResultadoAnotar.ok) await refrescar(silencioso: true);
+      return r;
+    } catch (_) {
+      return const RespuestaAnotar(ResultadoAnotar.sinConexion);
+    }
+  }
+
   Future<({int aplicadas, int rechazadas})> sincronizar({bool silencioso = false}) async {
     if (!enrolado || cola.isEmpty) return (aplicadas: 0, rechazadas: 0);
     try {

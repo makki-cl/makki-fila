@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api/models.dart';
 import '../app_state.dart';
 import '../orden.dart';
+import 'anotar_screen.dart';
 
 /// La lista del día, para quien llega sin QR: los que se anotaron por el enlace general se
 /// buscan por nombre y se marcan a mano.
@@ -79,6 +80,15 @@ class _ListScreenState extends State<ListScreen> {
               label: Text('${widget.estado.pendientes}',
                   style: const TextStyle(color: Colors.white)),
             ),
+          IconButton(
+            tooltip: 'Anotar comensal',
+            onPressed: () async {
+              await Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => AnotarScreen(estado: widget.estado)));
+              if (mounted) setState(() {});
+            },
+            icon: const Icon(Icons.person_add),
+          ),
           IconButton(
             tooltip: 'Actualizar',
             onPressed: () async {
