@@ -4,6 +4,7 @@ import '../api/models.dart';
 import '../app_state.dart';
 import 'anotar_screen.dart';
 import 'caja_screen.dart';
+import 'vivo_screen.dart';
 import 'list_screen.dart';
 import 'scan_screen.dart';
 
@@ -121,6 +122,13 @@ class HomeScreen extends StatelessWidget {
                 style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 22)),
                 icon: const Icon(Icons.qr_code_scanner, size: 28),
                 label: const Text('Escanear QR', style: TextStyle(fontSize: 18)),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: dia == null ? null : () => _abrir(context, VivoScreen(estado: estado)),
+                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 18)),
+                icon: const Icon(Icons.bolt),
+                label: const Text('Cómo va el día', style: TextStyle(fontSize: 16)),
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
