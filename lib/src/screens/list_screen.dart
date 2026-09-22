@@ -19,18 +19,34 @@ class ListScreen extends StatefulWidget {
   State<ListScreen> createState() => _ListScreenState();
 }
 
+/// Qué parte de la lista se está mirando.
+enum FiltroLista { porServir, servidos, todos }
+
 class _ListScreenState extends State<ListScreen> {
   String _busqueda = '';
-  bool _soloPendientes = true;
+
+  // Arranca en «por servir» todos los días: es lo que se mira mientras hay fila. Ver a los
+  // servidos es para después —cuadrar, buscar a alguien que dice que no pasó— y para eso se
+  // elige a propósito.
+  FiltroLista _filtro = FiltroLista.porServir;
 
   @override
   Widget build(BuildContext context) {
     final dia = widget.estado.dia;
     final acreditados = (dia?.tickets ?? []).where((t) => t.acreditada).length;
-    final tickets = (dia?.tickets ?? []).where((t) {
-      if (t.acreditada) return false;
-      if (t.estado == EstadoTicket.anulado) return false;
-      if (_soloPendientes && t.estado == EstadoTicket.servido) return false;
+
+    // La base: los del enlace, sin anulados. Sobre esta se cuentan los tres botones, para que
+    // el número del botón no dependa de lo que haya escrito en el buscador.
+    final base = (dia?.tickets ?? [])
+        .where((t) => !t.acreditada && t.estado != EstadoTicket.anulado)
+        .toList();
+    final servidos = base.where((t) => t.estado == EstadoTicket.servido).length;
+    final porServir = base.length - servidos;
+
+    final tickets = base.where((t) {
+      final servido = t.estado == EstadoTicket.servido;
+      if (_filtro == FiltroLista.porServir && servido) return false;
+      if (_filtro == FiltroLista.servidos && !servido) return false;
       if (_busqueda.isEmpty) return true;
       final q = _busqueda.toLowerCase();
       return t.persona.toLowerCase().contains(q) ||
@@ -107,11 +123,28 @@ class _ListScreenState extends State<ListScreen> {
               style: const ButtonStyle(visualDensity: VisualDensity.compact),
             ),
           ),
-          SwitchListTile(
-            value: _soloPendientes,
-            onChanged: (v) => setState(() => _soloPendientes = v),
-            title: const Text('Mostrar solo los que faltan'),
-            dense: true,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            child: SegmentedButton<FiltroLista>(
+              segments: [
+                ButtonSegment(
+                  value: FiltroLista.porServir,
+                  label: Text('Por servir ($porServir)'),
+                ),
+                ButtonSegment(
+                  value: FiltroLista.servidos,
+                  label: Text('Servidos ($servidos)'),
+                ),
+                ButtonSegment(
+                  value: FiltroLista.todos,
+                  label: Text('Todos (${base.length})'),
+                ),
+              ],
+              selected: {_filtro},
+              onSelectionChanged: (f) => setState(() => _filtro = f.first),
+              showSelectedIcon: false,
+              style: const ButtonStyle(visualDensity: VisualDensity.compact),
+            ),
           ),
           if (acreditados > 0)
             Container(
@@ -127,7 +160,7 @@ class _ListScreenState extends State<ListScreen> {
           const Divider(height: 1),
           Expanded(
             child: filas.isEmpty
-                ? const Center(child: Text('Nadie calza con la búsqueda'))
+                ? Center(child: Text(_vacio()))
                 : ListView.builder(
                     itemCount: filas.length,
                     itemBuilder: (context, i) {
@@ -147,6 +180,17 @@ class _ListScreenState extends State<ListScreen> {
         ],
       ),
     );
+  }
+
+  /// Qué decir cuando no hay nada que mostrar. «Nadie calza con la búsqueda» sobre una
+  /// lista de servidos vacía hace pensar que se perdieron los datos.
+  String _vacio() {
+    if (_busqueda.isNotEmpty) return 'Nadie calza con la búsqueda';
+    return switch (_filtro) {
+      FiltroLista.porServir => 'No queda nadie por servir',
+      FiltroLista.servidos => 'Todavía no se ha servido a nadie',
+      FiltroLista.todos => 'No hay nadie anotado por el enlace',
+    };
   }
 
   Future<void> _marcar(Ticket t) async {
@@ -218,6 +262,9 @@ class _Fila extends StatelessWidget {
         ticket.opcion,
         if (ticket.empresa != null) ticket.empresa!,
         if (ticket.area != null && ticket.area!.isNotEmpty) ticket.area!,
+        // La hora de quien ya pasó: es lo primero que se pregunta cuando alguien dice que no
+        // lo atendieron.
+        if (servido && ticket.consumidoUtc != null) 'servido ${_hora(ticket.consumidoUtc!)}',
       ].join(' · ')),
       trailing: servido
           ? const Icon(Icons.check_circle, color: Color(0xFF146C4E))
@@ -249,4 +296,10 @@ class _Encabezado extends StatelessWidget {
           ],
         ),
       );
+}
+
+/// Hora local del equipo: el servidor guarda en UTC y el mesón piensa en hora de Chile.
+String _hora(DateTime utc) {
+  final l = utc.toLocal();
+  return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
 }
