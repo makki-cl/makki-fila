@@ -14,6 +14,7 @@ class LocalStore {
   static const _kDia = 'diaCache';
   static const _kCola = 'colaPendiente';
   static const _kModo = 'modoMeson';
+  static const _kOrden = 'ordenLista';
 
   Future<SharedPreferences> get _prefs => SharedPreferences.getInstance();
 
@@ -30,6 +31,11 @@ class LocalStore {
   /// se pasa entero en uno de los dos, y volver a elegirlo en cada reinicio invita al error.
   Future<String?> modo() async => (await _prefs).getString(_kModo);
   Future<void> guardarModo(String v) async => (await _prefs).setString(_kModo, v);
+
+  /// Cómo prefiere ver la lista quien atiende. Se guarda por la misma razón que el modo:
+  /// es una preferencia de la persona, no de la sesión.
+  Future<String?> orden() async => (await _prefs).getString(_kOrden);
+  Future<void> guardarOrden(String v) async => (await _prefs).setString(_kOrden, v);
 
   /// Borra el enrolamiento. Se usa al revocar el equipo o al reinstalar.
   Future<void> olvidarTodo() async {

@@ -85,8 +85,13 @@ class ApiClient {
   }
 
   /// Envía de una vez lo marcado sin señal, con la hora real de cada marca.
-  Future<int> sincronizar(List<MarcaPendiente> marcas) async {
-    if (marcas.isEmpty) return 0;
+  ///
+  /// Devuelve cuántas entraron y cuántas el servidor no pudo aplicar. Lo segundo importa: una
+  /// marca rechazada —el ticket estaba anulado, o era de otro día— se perdería en silencio si
+  /// solo se contaran las que llegaron, y quien atendió nunca sabría que ese almuerzo no quedó
+  /// registrado.
+  Future<({int aplicadas, int rechazadas})> sincronizar(List<MarcaPendiente> marcas) async {
+    if (marcas.isEmpty) return (aplicadas: 0, rechazadas: 0);
     final r = await http
         .post(
           _uri('/api/line/sync'),
@@ -97,7 +102,17 @@ class ApiClient {
 
     if (r.statusCode != 200) throw Exception('No se pudo sincronizar (${r.statusCode}).');
     final j = jsonDecode(utf8.decode(r.bodyBytes)) as Map<String, dynamic>;
-    return (j['applied'] as num?)?.toInt() ?? 0;
+
+    const buenos = {'Ok', 'AlreadyConsumed'};
+    final detalle = (j['results'] as List?) ?? [];
+    final rechazadas = detalle
+        .where((d) => !buenos.contains((d as Map<String, dynamic>)['status'] as String? ?? ''))
+        .length;
+
+    return (
+      aplicadas: ((j['applied'] as num?)?.toInt() ?? 0) - rechazadas,
+      rechazadas: rechazadas,
+    );
   }
 
   /// Traduce el estado que manda el servidor. Lo que no se reconoce se trata como «no

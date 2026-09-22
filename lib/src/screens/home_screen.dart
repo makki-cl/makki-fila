@@ -26,10 +26,10 @@ class HomeScreen extends StatelessWidget {
               padding: const EdgeInsets.only(right: 4),
               child: TextButton.icon(
                 onPressed: () async {
-                  final n = await estado.sincronizar();
+                  final r = await estado.sincronizar();
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(n > 0 ? '$n marca(s) enviadas' : 'Sigue sin conexión')),
+                      SnackBar(content: Text(mensajeDeSincronia(r))),
                     );
                   }
                 },

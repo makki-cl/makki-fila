@@ -41,6 +41,11 @@ jobs:
       - name: Analizar código
         run: flutter analyze --no-fatal-infos
 
+      # Las pruebas son de lo que no se puede probar a mano sin cortarle el wifi a la tablet:
+      # que la fila siga sirviendo sin señal y que la cola no se pierda.
+      - name: Pruebas
+        run: flutter test
+
       # La cámara es el corazón de la app: sin este permiso el lector no abre.
       - name: Permisos y nombre
         run: |

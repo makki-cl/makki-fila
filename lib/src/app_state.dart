@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import 'api/api_client.dart';
 import 'api/models.dart';
 import 'data/local_store.dart';
+import 'orden.dart';
 
 /// En qué está atendiendo el equipo.
 ///
@@ -22,11 +25,15 @@ class AppState extends ChangeNotifier {
   String? _token;
   String operador = '';
   ModoMeson modo = ModoMeson.fila;
+  OrdenLista orden = OrdenLista.alfabetico;
   Sesion? sesion;
   DiaDeTrabajo? dia;
   List<MarcaPendiente> cola = [];
   bool cargando = false;
   String? error;
+
+  Timer? _reintentos;
+  int _vueltas = 0;
 
   bool get enrolado => _token != null && baseUrl != null;
   int get pendientes => cola.length;
@@ -38,6 +45,9 @@ class AppState extends ChangeNotifier {
     _token = await _store.token();
     operador = await _store.operador();
     modo = await _store.modo() == ModoMeson.caja.name ? ModoMeson.caja : ModoMeson.fila;
+    orden = await _store.orden() == OrdenLista.empresa.name
+        ? OrdenLista.empresa
+        : OrdenLista.alfabetico;
     cola = await _store.cola();
     dia = await _store.diaGuardado();
     notifyListeners();
@@ -46,6 +56,31 @@ class AppState extends ChangeNotifier {
       await sincronizar();
       await refrescar();
     }
+    _arrancarReintentos();
+  }
+
+  /// Reintentos en segundo plano.
+  ///
+  /// La tablet vive en un mesón, no en una mano: nadie está mirando si volvió el wifi. Sin
+  /// esto, las marcas hechas sin señal se quedan en la cola hasta que a alguien se le ocurre
+  /// tocar el botón de subir, y la copia del día envejece mientras la gente se sigue anotando.
+  void _arrancarReintentos() {
+    _reintentos?.cancel();
+    _reintentos = Timer.periodic(const Duration(minutes: 1), (_) async {
+      if (!enrolado) return;
+      if (cola.isNotEmpty) await sincronizar(silencioso: true);
+
+      // La copia se renueva más espaciada: durante el servicio la gente sigue anotándose, pero
+      // bajar el día entero cada minuto es gasto sin necesidad.
+      _vueltas++;
+      if (_vueltas % 5 == 0 && !cargando) await refrescar(silencioso: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _reintentos?.cancel();
+    super.dispose();
   }
 
   Future<void> enrolar(String url, String codigo, String infoEquipo) async {
@@ -72,6 +107,12 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<void> cambiarOrden(OrdenLista nuevo) async {
+    orden = nuevo;
+    await _store.guardarOrden(nuevo.name);
+    notifyListeners();
+  }
+
   Future<void> cambiarModo(ModoMeson nuevo) async {
     modo = nuevo;
     await _store.guardarModo(nuevo.name);
@@ -85,10 +126,16 @@ class AppState extends ChangeNotifier {
   }
 
   /// Baja el día de nuevo. Si no hay red, se queda con la copia que ya tenía.
-  Future<void> refrescar() async {
+  ///
+  /// [silencioso] es para los reintentos automáticos: no mueve el indicador de carga ni pinta
+  /// un error en rojo. Sin eso, una tablet sin señal mostraría el aviso solo porque pasaron
+  /// cinco minutos, y quien atiende aprendería a ignorarlo.
+  Future<void> refrescar({bool silencioso = false}) async {
     if (!enrolado) return;
-    cargando = true;
-    notifyListeners();
+    if (!silencioso) {
+      cargando = true;
+      notifyListeners();
+    }
     try {
       sesion = await _api.sesion();
       final bajado = await _api.dia();
@@ -105,7 +152,7 @@ class AppState extends ChangeNotifier {
       await _store.guardarDia(bajado);
       error = null;
     } catch (e) {
-      error = _mensaje(e);
+      if (!silencioso) error = _mensaje(e);
     } finally {
       cargando = false;
       notifyListeners();
@@ -179,18 +226,24 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<int> sincronizar() async {
-    if (!enrolado || cola.isEmpty) return 0;
+  /// Manda al servidor lo que se marcó sin señal.
+  ///
+  /// La cola se vacía solo si el servidor respondió: si no hay red, se queda entera para el
+  /// siguiente intento. Lo que el servidor rechazó también se saca —reintentarlo daría el
+  /// mismo rechazo para siempre— pero se informa, porque alguien tiene que saber que ese
+  /// almuerzo no quedó registrado.
+  Future<({int aplicadas, int rechazadas})> sincronizar({bool silencioso = false}) async {
+    if (!enrolado || cola.isEmpty) return (aplicadas: 0, rechazadas: 0);
     try {
-      final aplicadas = await _api.sincronizar(cola);
+      final resultado = await _api.sincronizar(cola);
       cola = [];
       await _store.guardarCola(cola);
       notifyListeners();
-      return aplicadas;
+      return resultado;
     } catch (e) {
-      error = _mensaje(e);
+      if (!silencioso) error = _mensaje(e);
       notifyListeners();
-      return 0;
+      return (aplicadas: 0, rechazadas: 0);
     }
   }
 
@@ -232,4 +285,14 @@ class AppState extends ChangeNotifier {
     }
     return texto;
   }
+}
+
+/// Cómo se le cuenta al mesón lo que pasó al subir la cola.
+String mensajeDeSincronia(({int aplicadas, int rechazadas}) r) {
+  if (r.aplicadas == 0 && r.rechazadas == 0) return 'Sigue sin conexión';
+  if (r.rechazadas == 0) return '${r.aplicadas} marca(s) enviadas';
+  if (r.aplicadas == 0) {
+    return 'El servidor rechazó ${r.rechazadas} marca(s): revísalas en el panel';
+  }
+  return '${r.aplicadas} enviadas · ${r.rechazadas} rechazadas, revísalas en el panel';
 }

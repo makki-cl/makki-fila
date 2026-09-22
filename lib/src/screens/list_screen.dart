@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../api/models.dart';
 import '../app_state.dart';
+import '../orden.dart';
 
 /// La lista del día, para quien llega sin QR: los que se anotaron por el enlace general se
 /// buscan por nombre y se marcan a mano.
@@ -37,6 +38,8 @@ class _ListScreenState extends State<ListScreen> {
           (t.empresa?.toLowerCase().contains(q) ?? false);
     }).toList();
 
+    final filas = ordenar(tickets, widget.estado.orden);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Lista de anotados'),
@@ -46,11 +49,10 @@ class _ListScreenState extends State<ListScreen> {
           if (widget.estado.pendientes > 0)
             TextButton.icon(
               onPressed: () async {
-                final n = await widget.estado.sincronizar();
+                final r = await widget.estado.sincronizar();
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(n > 0 ? '$n marca(s) enviadas' : 'Sigue sin conexión'),
-                ));
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(SnackBar(content: Text(mensajeDeSincronia(r))));
                 setState(() {});
               },
               icon: const Icon(Icons.cloud_upload, color: Colors.white),
@@ -81,6 +83,30 @@ class _ListScreenState extends State<ListScreen> {
               ),
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: SegmentedButton<OrdenLista>(
+              segments: const [
+                ButtonSegment(
+                  value: OrdenLista.alfabetico,
+                  icon: Icon(Icons.sort_by_alpha),
+                  label: Text('Alfabético'),
+                ),
+                ButtonSegment(
+                  value: OrdenLista.empresa,
+                  icon: Icon(Icons.business),
+                  label: Text('Por empresa'),
+                ),
+              ],
+              selected: {widget.estado.orden},
+              onSelectionChanged: (o) async {
+                await widget.estado.cambiarOrden(o.first);
+                if (mounted) setState(() {});
+              },
+              showSelectedIcon: false,
+              style: const ButtonStyle(visualDensity: VisualDensity.compact),
+            ),
+          ),
           SwitchListTile(
             value: _soloPendientes,
             onChanged: (v) => setState(() => _soloPendientes = v),
@@ -100,15 +126,22 @@ class _ListScreenState extends State<ListScreen> {
             ),
           const Divider(height: 1),
           Expanded(
-            child: tickets.isEmpty
+            child: filas.isEmpty
                 ? const Center(child: Text('Nadie calza con la búsqueda'))
-                : ListView.separated(
-                    itemCount: tickets.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, i) => _Fila(
-                      ticket: tickets[i],
-                      onMarcar: () => _marcar(tickets[i]),
-                    ),
+                : ListView.builder(
+                    itemCount: filas.length,
+                    itemBuilder: (context, i) {
+                      final fila = filas[i];
+                      if (fila is GrupoDeEmpresa) return _Encabezado(grupo: fila);
+                      final t = fila as Ticket;
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (i > 0 && filas[i - 1] is Ticket) const Divider(height: 1),
+                          _Fila(ticket: t, onMarcar: () => _marcar(t)),
+                        ],
+                      );
+                    },
                   ),
           ),
         ],
@@ -191,4 +224,29 @@ class _Fila extends StatelessWidget {
           : FilledButton(onPressed: onMarcar, child: const Text('Marcar')),
     );
   }
+}
+
+
+/// Encabezado del grupo de una empresa. Dice cuántos son, que es lo que pregunta quien pasa
+/// lista por empresa antes de contar cabezas.
+class _Encabezado extends StatelessWidget {
+  const _Encabezado({required this.grupo});
+
+  final GrupoDeEmpresa grupo;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: double.infinity,
+        color: const Color(0xFFEDF0EA),
+        padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(grupo.empresa,
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            Text('${grupo.cuantos}',
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
+          ],
+        ),
+      );
 }
