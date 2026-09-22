@@ -1,6 +1,9 @@
 name: makki_fila
 description: Lector de tickets del casino Makki para el mesón.
 publish_to: "none"
+# Solo es el valor de respaldo para compilar a mano: el CI estampa la versión real de cada
+# publicación con --build-name/--build-number. Si esto fuera la versión de verdad, todos los
+# APK dirían lo mismo y ningún actualizador automático los distinguiría.
 version: 1.0.0+1
 
 environment:

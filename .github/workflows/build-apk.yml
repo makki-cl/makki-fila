@@ -60,8 +60,17 @@ jobs:
           # mobile_scanner necesita minSdk 21+; Flutter ya usa uno mayor, pero se deja explícito.
           sed -i -E 's/minSdk = flutter.minSdkVersion/minSdk = 23/' android/app/build.gradle.kts 2>/dev/null || true
 
+      # La versión se estampa acá, no en pubspec.yaml. Sin esto todos los APK salían con la
+      # misma versión interna (1.0.0, código 1) y Obtainium, que compara la versión del
+      # archivo con la instalada, concluía que no había nada que actualizar por mucho que la
+      # publicación se llamara v1.0.13. El número de ejecución es monótono: sirve de código
+      # de versión para Android, que solo acepta subir.
       - name: Compilar APK
-        run: flutter build apk --release --dart-define=MAKKI_BASE_URL=${{ vars.MAKKI_BASE_URL }}
+        run: |
+          flutter build apk --release \
+            --build-name=1.0.${{ github.run_number }} \
+            --build-number=${{ github.run_number }} \
+            --dart-define=MAKKI_BASE_URL=${{ vars.MAKKI_BASE_URL }}
 
       - name: Publicar Release
         uses: softprops/action-gh-release@v2
