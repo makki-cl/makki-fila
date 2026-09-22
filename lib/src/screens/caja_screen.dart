@@ -73,7 +73,7 @@ class _CajaScreenState extends State<CajaScreen> {
                   style: TextStyle(
                     fontSize: _monto == 0 ? 30 : 46,
                     fontWeight: FontWeight.w800,
-                    color: _monto == 0 ? Colors.black45 : const Color(0xFF2B2140),
+                    color: _monto == 0 ? Colors.black45 : const Color(0xFF291F47),
                   ),
                 ),
                 if (_ultimo != null) ...[
@@ -159,7 +159,7 @@ class _Teclado extends StatelessWidget {
               onPressed: () => t == '⌫' ? onBorrar() : onDigito(t),
               style: OutlinedButton.styleFrom(
                 backgroundColor: Colors.white,
-                foregroundColor: const Color(0xFF2B2140),
+                foregroundColor: const Color(0xFF291F47),
               ),
               child: Text(t, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600)),
             ),
