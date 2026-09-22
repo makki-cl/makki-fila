@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../actualizacion.dart';
 import '../api/models.dart';
 import '../app_state.dart';
 import 'anotar_screen.dart';
@@ -10,13 +11,45 @@ import 'scan_screen.dart';
 
 /// Pantalla principal del mesón: qué se está sirviendo hoy, cómo va la fila y los dos botones
 /// que se usan de verdad — escanear y buscar a alguien en la lista.
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.estado});
 
   final AppState estado;
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  Actualizacion? _nueva;
+  double? _bajando;
+
+  @override
+  void initState() {
+    super.initState();
+    // Se pregunta una vez al abrir. Si no hay señal o no hay nada nuevo, no se dice nada:
+    // el mesón no tiene por qué enterarse de que se buscó.
+    Actualizacion.buscar().then((a) {
+      if (mounted && a != null) setState(() => _nueva = a);
+    });
+  }
+
+  Future<void> _actualizar() async {
+    setState(() => _bajando = 0);
+    final error = await _nueva!.instalar(
+      avance: (p) { if (mounted) setState(() => _bajando = p); },
+    );
+    if (!mounted) return;
+    setState(() => _bajando = null);
+    if (error != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('No se pudo actualizar: $error')));
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final estado = widget.estado;
     final dia = estado.dia;
 
     return Scaffold(
@@ -61,6 +94,11 @@ class HomeScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            if (_nueva != null) _AvisoActualizacion(
+              version: _nueva!.version,
+              avance: _bajando,
+              onActualizar: _actualizar,
+            ),
             if (estado.pendientes > 0)
               _Aviso(
                 color: const Color(0xFFFDF6E7),
@@ -163,7 +201,7 @@ class HomeScreen extends StatelessWidget {
   /// Quién opera queda registrado en cada marca: el permiso es del equipo, pero la
   /// responsabilidad de quien marcó tiene que quedar escrita.
   Future<void> _pedirOperador(BuildContext context) async {
-    final control = TextEditingController(text: estado.operador);
+    final control = TextEditingController(text: widget.estado.operador);
     final nombre = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -180,7 +218,7 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
     );
-    if (nombre != null) await estado.guardarOperador(nombre);
+    if (nombre != null) await widget.estado.guardarOperador(nombre);
   }
 }
 
@@ -302,6 +340,51 @@ class _Aviso extends StatelessWidget {
           Icon(icono, color: borde, size: 20),
           const SizedBox(width: 10),
           Expanded(child: Text(texto, style: const TextStyle(fontSize: 13))),
+        ]),
+      );
+}
+
+/// El aviso de versión nueva. Arriba de todo y con el botón a mano: si hay que ir a buscarla
+/// a una pantalla de ajustes, los equipos se quedan atrás para siempre.
+class _AvisoActualizacion extends StatelessWidget {
+  const _AvisoActualizacion(
+      {required this.version, required this.avance, required this.onActualizar});
+
+  final String version;
+  final double? avance;
+  final VoidCallback onActualizar;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEFEDF7),
+          border: Border.all(color: const Color(0xFF372B62)),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(children: [
+          const Icon(Icons.system_update, color: Color(0xFF372B62)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: avance == null
+                ? Text('Hay una versión nueva: $version',
+                    style: const TextStyle(fontWeight: FontWeight.w600))
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Bajando ${(avance! * 100).round()}%'),
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: LinearProgressIndicator(
+                            value: avance, minHeight: 6, color: const Color(0xFF372B62)),
+                      ),
+                    ],
+                  ),
+          ),
+          if (avance == null)
+            FilledButton(onPressed: onActualizar, child: const Text('Actualizar')),
         ]),
       );
 }
