@@ -21,7 +21,7 @@ class ListScreen extends StatefulWidget {
 }
 
 /// Qué parte de la lista se está mirando.
-enum FiltroLista { porServir, servidos, anulados, todos }
+enum FiltroLista { porServir, servidos, paraLlevar, anulados, todos }
 
 class _ListScreenState extends State<ListScreen> {
   String _busqueda = '';
@@ -41,6 +41,9 @@ class _ListScreenState extends State<ListScreen> {
     final base = (dia?.tickets ?? []).where((t) => !t.acreditada).toList();
     final servidos = base.where((t) => t.estado == EstadoTicket.servido).length;
     final anulados = base.where((t) => t.estado == EstadoTicket.anulado).length;
+    final llevar = base
+        .where((t) => t.paraLlevar && t.estado != EstadoTicket.anulado)
+        .length;
     final porServir = base.length - servidos - anulados;
 
     final tickets = base.where((t) {
@@ -52,6 +55,8 @@ class _ListScreenState extends State<ListScreen> {
       if (_filtro == FiltroLista.porServir && servido) return false;
       if (_filtro == FiltroLista.servidos && !servido) return false;
       if (_filtro == FiltroLista.anulados && !anulado) return false;
+      // La cocina prepara los envases aparte: poder ver solo esos es media pantalla de trabajo.
+      if (_filtro == FiltroLista.paraLlevar && !t.paraLlevar) return false;
       if (_busqueda.isEmpty) return true;
       final q = _busqueda.toLowerCase();
       return t.persona.toLowerCase().contains(q) ||
@@ -145,6 +150,10 @@ class _ListScreenState extends State<ListScreen> {
                   label: Text('Servidos ($servidos)'),
                 ),
                 ButtonSegment(
+                  value: FiltroLista.paraLlevar,
+                  label: Text('Llevar ($llevar)'),
+                ),
+                ButtonSegment(
                   value: FiltroLista.anulados,
                   label: Text('Anulados ($anulados)'),
                 ),
@@ -202,6 +211,7 @@ class _ListScreenState extends State<ListScreen> {
     return switch (_filtro) {
       FiltroLista.porServir => 'No queda nadie por servir',
       FiltroLista.servidos => 'Todavía no se ha servido a nadie',
+      FiltroLista.paraLlevar => 'Nadie pidió para llevar',
       FiltroLista.anulados => 'Nadie ha anulado hoy',
       FiltroLista.todos => 'No hay nadie anotado por el enlace',
     };
