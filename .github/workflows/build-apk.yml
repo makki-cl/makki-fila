@@ -92,10 +92,15 @@ jobs:
       # encima del que está en la tablet y deja a los equipos sin poder actualizar.
       - name: Comprobar la firma
         run: |
-          keytool -printcert -jarfile build/app/outputs/flutter-apk/app-release.apk > /tmp/cert.txt
-          grep -m1 SHA256 /tmp/cert.txt
-          grep -q "83:90:B6:02:92:11:B1:88" /tmp/cert.txt || {
-            echo "!! El APK no quedó firmado con la clave de Makki"; exit 1; }
+          set -e
+          # apksigner y no keytool: los APK de hoy se firman con el esquema v2/v3 y ya no
+          # llevan la firma dentro del JAR, así que keytool no encuentra nada.
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs build/app/outputs/flutter-apk/app-release.apk > /tmp/cert.txt
+          grep -i "SHA-256 digest" /tmp/cert.txt | head -1
+          grep -qi "8390b60292 11b188" /tmp/cert.txt \
+            || grep -qi "8390b6029211b188" /tmp/cert.txt \
+            || { echo "!! El APK no quedó firmado con la clave de Makki"; cat /tmp/cert.txt; exit 1; }
 
       - name: Publicar Release
         uses: softprops/action-gh-release@v2
