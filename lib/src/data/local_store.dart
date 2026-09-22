@@ -15,6 +15,8 @@ class LocalStore {
   static const _kCola = 'colaPendiente';
   static const _kModo = 'modoMeson';
   static const _kOrden = 'ordenLista';
+  static const _kResolucion = 'resolucionCamara';
+  static const _kFrontal = 'camaraFrontal';
 
   Future<SharedPreferences> get _prefs => SharedPreferences.getInstance();
 
@@ -36,6 +38,15 @@ class LocalStore {
   /// es una preferencia de la persona, no de la sesión.
   Future<String?> orden() async => (await _prefs).getString(_kOrden);
   Future<void> guardarOrden(String v) async => (await _prefs).setString(_kOrden, v);
+
+  /// Qué resolución le sirve a la cámara de ESTE equipo, y con cuál de las dos cámaras
+  /// trabaja. Es una propiedad del aparato, no de la operación: se guarda aunque se
+  /// desvincule y se vuelva a enrolar.
+  Future<String?> resolucion() async => (await _prefs).getString(_kResolucion);
+  Future<void> guardarResolucion(String v) async => (await _prefs).setString(_kResolucion, v);
+
+  Future<bool> camaraFrontal() async => (await _prefs).getBool(_kFrontal) ?? false;
+  Future<void> guardarCamaraFrontal(bool v) async => (await _prefs).setBool(_kFrontal, v);
 
   /// Borra el enrolamiento. Se usa al revocar el equipo o al reinstalar.
   Future<void> olvidarTodo() async {

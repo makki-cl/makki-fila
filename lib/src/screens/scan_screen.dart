@@ -24,15 +24,27 @@ class ScanScreen extends StatefulWidget {
 }
 
 class _ScanScreenState extends State<ScanScreen> {
-  final MobileScannerController _camara = MobileScannerController(
-    detectionSpeed: DetectionSpeed.noDuplicates,
-    formats: const [BarcodeFormat.qrCode],
-  );
+  late MobileScannerController _camara = _nuevaCamara();
 
   RespuestaMarca? _respuesta;
   bool _procesando = false;
 
   bool get _enCaja => widget.estado.modo == ModoMeson.caja;
+
+  MobileScannerController _nuevaCamara() => MobileScannerController(
+        detectionSpeed: DetectionSpeed.noDuplicates,
+        formats: const [BarcodeFormat.qrCode],
+        cameraResolution: widget.estado.resolucion.tamano,
+        facing: widget.estado.camaraFrontal ? CameraFacing.front : CameraFacing.back,
+      );
+
+  /// Rehace la cámara con lo que se acaba de elegir. No basta con cambiar el ajuste: la
+  /// resolución se fija al abrir el dispositivo, así que hay que cerrarlo y abrirlo de nuevo.
+  Future<void> _rehacerCamara() async {
+    final vieja = _camara;
+    setState(() => _camara = _nuevaCamara());
+    await vieja.dispose();
+  }
 
   @override
   void dispose() {
@@ -106,6 +118,69 @@ class _ScanScreenState extends State<ScanScreen> {
     await _marcar(codigo, esperaAntesDeSeguir: const Duration(milliseconds: 2200));
   }
 
+  /// Ajustes de la cámara de ESTE equipo.
+  ///
+  /// Hay tablets cuyo driver entrega el cuadro mal y la pantalla muestra bandas de colores en
+  /// vez de la imagen. Cuál resolución funciona depende del aparato, así que se prueba acá
+  /// mismo, con la cámara a la vista, en vez de esperar una versión nueva de la aplicación.
+  Future<void> _ajustarCamara() async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('La cámara se ve mal'),
+        content: StatefulBuilder(
+          builder: (ctx, redibujar) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Si en vez de la imagen salen bandas de colores, prueba otra resolución: '
+                'cierra este cuadro y mira. Lo que elijas se queda guardado en este equipo.',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 8),
+              RadioGroup<ResolucionCamara>(
+                groupValue: widget.estado.resolucion,
+                onChanged: (v) async {
+                  if (v == null) return;
+                  await widget.estado.cambiarResolucion(v);
+                  redibujar(() {});
+                  await _rehacerCamara();
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final r in ResolucionCamara.values)
+                      RadioListTile<ResolucionCamara>(
+                        value: r,
+                        dense: true,
+                        title: Text(r.etiqueta),
+                      ),
+                  ],
+                ),
+              ),
+              const Divider(),
+              SwitchListTile(
+                value: widget.estado.camaraFrontal,
+                dense: true,
+                title: const Text('Usar la cámara de adelante'),
+                subtitle: const Text('Por si la de atrás está fallando', style: TextStyle(fontSize: 12)),
+                onChanged: (v) async {
+                  await widget.estado.cambiarCamara(v);
+                  redibujar(() {});
+                  await _rehacerCamara();
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Listo')),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -124,11 +199,20 @@ class _ScanScreenState extends State<ScanScreen> {
             icon: const Icon(Icons.flashlight_on),
             tooltip: 'Linterna',
           ),
+          IconButton(
+            onPressed: _ajustarCamara,
+            icon: const Icon(Icons.tune),
+            tooltip: 'La cámara se ve mal',
+          ),
         ],
       ),
       body: Stack(
         children: [
-          MobileScanner(controller: _camara, onDetect: _alLeer),
+          MobileScanner(
+            key: ValueKey('${widget.estado.resolucion.name}-${widget.estado.camaraFrontal}'),
+            controller: _camara,
+            onDetect: _alLeer,
+          ),
           if (_respuesta != null)
             GestureDetector(
               // Solo cierra al tocar en la caja; en la fila la pantalla se va sola y un toque
@@ -148,8 +232,8 @@ class _ScanScreenState extends State<ScanScreen> {
                 padding: const EdgeInsets.all(28),
                 child: Text(
                   _enCaja
-                      ? 'Apunta al QR del vale · el teclado de arriba es para dictar el código'
-                      : 'Apunta al QR del comensal · el teclado de arriba es para dictar el código',
+                      ? 'Apunta al QR del vale · si la imagen se ve rara, toca el control de arriba'
+                      : 'Apunta al QR del comensal · si la imagen se ve rara, toca el control de arriba',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                       color: Colors.white, fontSize: 16, backgroundColor: Colors.black54),

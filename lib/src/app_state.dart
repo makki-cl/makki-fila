@@ -1,11 +1,31 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show Size;
 
 import 'api/api_client.dart';
 import 'api/models.dart';
 import 'data/local_store.dart';
 import 'orden.dart';
+
+/// Resoluciones que se le pueden pedir a la cámara.
+///
+/// Existe esta lista porque hay tablets —las rugerizadas baratas sobre todo— cuyo driver
+/// entrega el cuadro con un ancho de fila que no calza con la resolución que dice tener, y la
+/// pantalla muestra bandas de colores en vez de la imagen. Cambiar la resolución lo arregla,
+/// pero cuál funciona depende del equipo, así que se elige en el equipo y no en el código:
+/// nadie puede esperar un APK nuevo con la fila formada.
+enum ResolucionCamara {
+  automatica('Automática', null),
+  media('1280 × 720', Size(1280, 720)),
+  alta('1920 × 1080', Size(1920, 1080)),
+  baja('640 × 480', Size(640, 480));
+
+  const ResolucionCamara(this.etiqueta, this.tamano);
+
+  final String etiqueta;
+  final Size? tamano;
+}
 
 /// En qué está atendiendo el equipo.
 ///
@@ -26,6 +46,8 @@ class AppState extends ChangeNotifier {
   String operador = '';
   ModoMeson modo = ModoMeson.fila;
   OrdenLista orden = OrdenLista.alfabetico;
+  ResolucionCamara resolucion = ResolucionCamara.automatica;
+  bool camaraFrontal = false;
   Sesion? sesion;
   DiaDeTrabajo? dia;
   List<MarcaPendiente> cola = [];
@@ -48,6 +70,10 @@ class AppState extends ChangeNotifier {
     orden = await _store.orden() == OrdenLista.empresa.name
         ? OrdenLista.empresa
         : OrdenLista.alfabetico;
+    final guardada = await _store.resolucion();
+    resolucion = ResolucionCamara.values.firstWhere((r) => r.name == guardada,
+        orElse: () => ResolucionCamara.automatica);
+    camaraFrontal = await _store.camaraFrontal();
     cola = await _store.cola();
     dia = await _store.diaGuardado();
     notifyListeners();
@@ -105,6 +131,18 @@ class AppState extends ChangeNotifier {
       cargando = false;
       notifyListeners();
     }
+  }
+
+  Future<void> cambiarResolucion(ResolucionCamara nueva) async {
+    resolucion = nueva;
+    await _store.guardarResolucion(nueva.name);
+    notifyListeners();
+  }
+
+  Future<void> cambiarCamara(bool frontal) async {
+    camaraFrontal = frontal;
+    await _store.guardarCamaraFrontal(frontal);
+    notifyListeners();
   }
 
   Future<void> cambiarOrden(OrdenLista nuevo) async {
