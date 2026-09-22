@@ -246,6 +246,19 @@ class _Fila extends StatelessWidget {
     final anulado = ticket.estado == EstadoTicket.anulado;
     return ListTile(
       title: Row(children: [
+        // Para llevar va antes que el nombre: es lo que cambia lo que hace el mesón con el
+        // plato, y tiene que verse sin leer la fila entera.
+        if (ticket.paraLlevar)
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+                color: const Color(0xFFC2410C).withValues(alpha: .14),
+                borderRadius: BorderRadius.circular(999)),
+            child: const Text('PARA LLEVAR',
+                style: TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFC2410C))),
+          ),
         Expanded(
           child: Text(ticket.persona,
               style: TextStyle(
@@ -274,7 +287,14 @@ class _Fila extends StatelessWidget {
         if (servido && ticket.consumidoUtc != null) 'servido ${_hora(ticket.consumidoUtc!)}',
         if (anulado)
           ticket.anuladoUtc != null ? 'ANULADO ${_hora(ticket.anuladoUtc!)}' : 'ANULADO',
-      ].join(' · ')),
+      ].join(' · ')
+          // Lo que la persona escribió al anotarse: alergias, sin ají, doble arroz. De nada
+          // sirve guardarlo si quien sirve el plato no lo ve.
+          +
+          (ticket.comentario == null || ticket.comentario!.isEmpty
+              ? ''
+              : '\n«${ticket.comentario}»')),
+      isThreeLine: ticket.comentario != null && ticket.comentario!.isNotEmpty,
       trailing: anulado
           // Un anulado no se sirve: no hay botón que apretar, solo el rastro de que existió.
           ? const Icon(Icons.cancel, color: Color(0xFFC0392B))

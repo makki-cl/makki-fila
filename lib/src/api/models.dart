@@ -61,6 +61,7 @@ class Ticket {
     required this.consumidoUtc,
     required this.comentario,
     this.anuladoUtc,
+    this.paraLlevar = false,
   });
 
   final String id;
@@ -81,6 +82,9 @@ class Ticket {
   /// Cuándo se anuló, si se anuló. El mesón necesita la hora para responderle a quien dice
   /// que no anuló nada.
   final DateTime? anuladoUtc;
+
+  /// Se lo lleva: va en envase y no ocupa mesa. Hay que saberlo ANTES de servir en loza.
+  final bool paraLlevar;
 
   /// Código en el formato en que se lee y se dicta: dos grupos de tres.
   String get codigoLegible =>
@@ -103,6 +107,7 @@ class Ticket {
         anuladoUtc: j['cancelledUtc'] == null
             ? null
             : DateTime.tryParse(j['cancelledUtc'] as String)?.toUtc(),
+        paraLlevar: j['paraLlevar'] as bool? ?? false,
       );
 
   Map<String, dynamic> aJson() => {
@@ -118,6 +123,7 @@ class Ticket {
         'consumedUtc': consumidoUtc?.toIso8601String(),
         'comment': comentario,
         'cancelledUtc': anuladoUtc?.toIso8601String(),
+        'paraLlevar': paraLlevar,
       };
 }
 
