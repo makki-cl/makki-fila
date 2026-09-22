@@ -12,10 +12,12 @@ import pathlib
 import re
 import sys
 
+IMPORT = 'import java.util.Properties\n'
+
 FIRMA = '''    signingConfigs {
         create("release") {
-            val props = java.util.Properties()
-            rootProject.file("key.properties").inputStream().use { props.load(it) }
+            val props = Properties()
+            rootProject.file("key.properties").reader().use { props.load(it) }
             storeFile = file(props.getProperty("storeFile"))
             storePassword = props.getProperty("storePassword")
             keyAlias = props.getProperty("keyAlias")
@@ -36,6 +38,11 @@ if 'signingConfigs' in s and 'key.properties' in s:
 
 if '    buildTypes {' not in s:
     sys.exit('No encontré el bloque buildTypes: cambió la plantilla de Flutter.')
+
+# El import va arriba del todo: en Kotlin DSL no se puede usar java.util.Properties
+# cualificado dentro del bloque sin que el compilador del script se queje.
+if 'import java.util.Properties' not in s:
+    s = IMPORT + s
 
 s = s.replace('    buildTypes {', FIRMA + '    buildTypes {', 1)
 s, n = re.subn(r'signingConfig\s*=\s*signingConfigs\.getByName\("debug"\)',
