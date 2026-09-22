@@ -35,6 +35,22 @@ jobs:
           flutter create --org cl.makki --project-name makki_fila --platforms=android .
           rm -f test/widget_test.dart
 
+      # Firma con la clave de Makki, siempre la misma. Sin esto Flutter usa una clave de
+      # depuración que el runner inventa en cada compilación: Android compara firmas al
+      # actualizar, no la reconoce, y responde failureConflict.
+      - name: Preparar la firma
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -e
+          echo "$KEYSTORE_B64" | base64 -d > android/app/makki.jks
+          printf 'storeFile=makki.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            "$STORE_PASS" "$KEY_ALIAS" "$KEY_PASS" > android/key.properties
+          python3 tools/firmar_android.py
+
       - name: Dependencias
         run: flutter pub get
 
@@ -71,6 +87,15 @@ jobs:
             --build-name=1.0.${{ github.run_number }} \
             --build-number=${{ github.run_number }} \
             --dart-define=MAKKI_BASE_URL=${{ vars.MAKKI_BASE_URL }}
+
+      # Si la firma no es la de Makki, no se publica: un APK con otra firma no se instala
+      # encima del que está en la tablet y deja a los equipos sin poder actualizar.
+      - name: Comprobar la firma
+        run: |
+          keytool -printcert -jarfile build/app/outputs/flutter-apk/app-release.apk > /tmp/cert.txt
+          grep -m1 SHA256 /tmp/cert.txt
+          grep -q "83:90:B6:02:92:11:B1:88" /tmp/cert.txt || {
+            echo "!! El APK no quedó firmado con la clave de Makki"; exit 1; }
 
       - name: Publicar Release
         uses: softprops/action-gh-release@v2
