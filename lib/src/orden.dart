@@ -8,6 +8,10 @@ enum OrdenLista {
   /// Agrupados por empresa y, dentro de cada una, por nombre. Es el orden en que se factura
   /// y el que usa quien pasa lista por empresa.
   empresa,
+
+  /// Por hora de atención, el último primero. Es la forma de ver cómo fue pasando la fila y,
+  /// sobre todo, de contestar «¿pasé o no?» mirando el final de la lista.
+  cronologico,
 }
 
 /// Encabezado de un grupo de la lista.
@@ -30,6 +34,20 @@ List<Object> ordenar(List<Ticket> tickets, OrdenLista orden) {
   if (orden == OrdenLista.alfabetico) {
     final solos = [...tickets]..sort(porNombre);
     return solos;
+  }
+
+  if (orden == OrdenLista.cronologico) {
+    // Servidos primero, del más reciente al más viejo. Los que todavía no pasan no tienen
+    // hora que ordenar, así que van al final por nombre: no se pierden de la lista, pero no
+    // se mezclan con los que sí tienen una hora que mirar.
+    final porHora = [...tickets]..sort((a, b) {
+        final ha = a.consumidoUtc, hb = b.consumidoUtc;
+        if (ha != null && hb != null) return hb.compareTo(ha);
+        if (ha != null) return -1;
+        if (hb != null) return 1;
+        return porNombre(a, b);
+      });
+    return porHora;
   }
 
   final ordenados = [...tickets]

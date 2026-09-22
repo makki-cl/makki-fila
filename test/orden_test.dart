@@ -2,10 +2,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:makki_fila/src/api/models.dart';
 import 'package:makki_fila/src/orden.dart';
 
-Ticket persona(String nombre, String? empresa) => Ticket(
+Ticket persona(String nombre, String? empresa, {DateTime? servido}) => Ticket(
       id: nombre, codigo: 'AAA111', token: nombre, persona: nombre, area: null,
       empresa: empresa, acreditada: false, opcion: 'Cazuela',
-      estado: EstadoTicket.vigente, consumidoUtc: null, comentario: null,
+      estado: servido == null ? EstadoTicket.vigente : EstadoTicket.servido,
+      consumidoUtc: servido, comentario: null,
     );
 
 void main() {
@@ -40,5 +41,26 @@ void main() {
     final sinEmpresa = filas.whereType<GrupoDeEmpresa>().firstWhere(
         (g) => g.empresa == 'Sin empresa');
     expect(sinEmpresa.cuantos, 1);
+  });
+
+  group('cronológico', () {
+    final t = DateTime.utc(2026, 9, 22, 15);
+    final fila = [
+      persona('Primero', 'Yadran', servido: t),
+      persona('Tercero', 'Yadran', servido: t.add(const Duration(minutes: 20))),
+      persona('No pasó', 'Sealand'),
+      persona('Segundo', 'Sealand', servido: t.add(const Duration(minutes: 10))),
+    ];
+
+    test('el último servido va arriba', () {
+      final r = ordenar(fila, OrdenLista.cronologico).cast<Ticket>();
+      expect(r.take(3).map((x) => x.persona), ['Tercero', 'Segundo', 'Primero']);
+    });
+
+    test('los que no han pasado quedan al final, no se pierden', () {
+      final r = ordenar(fila, OrdenLista.cronologico).cast<Ticket>();
+      expect(r.last.persona, 'No pasó');
+      expect(r, hasLength(4));
+    });
   });
 }

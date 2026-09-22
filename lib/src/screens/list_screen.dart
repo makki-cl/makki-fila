@@ -20,7 +20,7 @@ class ListScreen extends StatefulWidget {
 }
 
 /// Qué parte de la lista se está mirando.
-enum FiltroLista { porServir, servidos, todos }
+enum FiltroLista { porServir, servidos, anulados, todos }
 
 class _ListScreenState extends State<ListScreen> {
   String _busqueda = '';
@@ -35,18 +35,22 @@ class _ListScreenState extends State<ListScreen> {
     final dia = widget.estado.dia;
     final acreditados = (dia?.tickets ?? []).where((t) => t.acreditada).length;
 
-    // La base: los del enlace, sin anulados. Sobre esta se cuentan los tres botones, para que
-    // el número del botón no dependa de lo que haya escrito en el buscador.
-    final base = (dia?.tickets ?? [])
-        .where((t) => !t.acreditada && t.estado != EstadoTicket.anulado)
-        .toList();
+    // La base: todos los del enlace, anulados incluidos. Sobre esta se cuentan los botones,
+    // para que el número no dependa de lo que haya escrito en el buscador.
+    final base = (dia?.tickets ?? []).where((t) => !t.acreditada).toList();
     final servidos = base.where((t) => t.estado == EstadoTicket.servido).length;
-    final porServir = base.length - servidos;
+    final anulados = base.where((t) => t.estado == EstadoTicket.anulado).length;
+    final porServir = base.length - servidos - anulados;
 
     final tickets = base.where((t) {
       final servido = t.estado == EstadoTicket.servido;
+      final anulado = t.estado == EstadoTicket.anulado;
+      // Los anulados solo aparecen cuando se piden: no tienen nada que hacer en la lista con
+      // la que se atiende, y confundirlos con un pendiente es servir un almuerzo de más.
+      if (_filtro != FiltroLista.anulados && anulado) return false;
       if (_filtro == FiltroLista.porServir && servido) return false;
       if (_filtro == FiltroLista.servidos && !servido) return false;
+      if (_filtro == FiltroLista.anulados && !anulado) return false;
       if (_busqueda.isEmpty) return true;
       final q = _busqueda.toLowerCase();
       return t.persona.toLowerCase().contains(q) ||
@@ -102,17 +106,12 @@ class _ListScreenState extends State<ListScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: SegmentedButton<OrdenLista>(
+              // Sin íconos: con tres opciones y los nombres completos, en la tablet del mesón
+              // se lee mejor el texto solo.
               segments: const [
-                ButtonSegment(
-                  value: OrdenLista.alfabetico,
-                  icon: Icon(Icons.sort_by_alpha),
-                  label: Text('Alfabético'),
-                ),
-                ButtonSegment(
-                  value: OrdenLista.empresa,
-                  icon: Icon(Icons.business),
-                  label: Text('Por empresa'),
-                ),
+                ButtonSegment(value: OrdenLista.alfabetico, label: Text('Alfabético')),
+                ButtonSegment(value: OrdenLista.empresa, label: Text('Por empresa')),
+                ButtonSegment(value: OrdenLista.cronologico, label: Text('Cronológico')),
               ],
               selected: {widget.estado.orden},
               onSelectionChanged: (o) async {
@@ -136,8 +135,12 @@ class _ListScreenState extends State<ListScreen> {
                   label: Text('Servidos ($servidos)'),
                 ),
                 ButtonSegment(
+                  value: FiltroLista.anulados,
+                  label: Text('Anulados ($anulados)'),
+                ),
+                ButtonSegment(
                   value: FiltroLista.todos,
-                  label: Text('Todos (${base.length})'),
+                  label: Text('Todos (${base.length - anulados})'),
                 ),
               ],
               selected: {_filtro},
@@ -189,6 +192,7 @@ class _ListScreenState extends State<ListScreen> {
     return switch (_filtro) {
       FiltroLista.porServir => 'No queda nadie por servir',
       FiltroLista.servidos => 'Todavía no se ha servido a nadie',
+      FiltroLista.anulados => 'Nadie ha anulado hoy',
       FiltroLista.todos => 'No hay nadie anotado por el enlace',
     };
   }
@@ -239,13 +243,16 @@ class _Fila extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final servido = ticket.estado == EstadoTicket.servido;
+    final anulado = ticket.estado == EstadoTicket.anulado;
     return ListTile(
       title: Row(children: [
         Expanded(
           child: Text(ticket.persona,
               style: TextStyle(
                   fontWeight: FontWeight.w600,
-                  decoration: servido ? TextDecoration.lineThrough : null)),
+                  color: anulado ? Colors.black45 : null,
+                  decoration:
+                      servido || anulado ? TextDecoration.lineThrough : null)),
         ),
         if (ticket.acreditada)
           Container(
@@ -265,10 +272,15 @@ class _Fila extends StatelessWidget {
         // La hora de quien ya pasó: es lo primero que se pregunta cuando alguien dice que no
         // lo atendieron.
         if (servido && ticket.consumidoUtc != null) 'servido ${_hora(ticket.consumidoUtc!)}',
+        if (anulado)
+          ticket.anuladoUtc != null ? 'ANULADO ${_hora(ticket.anuladoUtc!)}' : 'ANULADO',
       ].join(' · ')),
-      trailing: servido
-          ? const Icon(Icons.check_circle, color: Color(0xFF146C4E))
-          : FilledButton(onPressed: onMarcar, child: const Text('Marcar')),
+      trailing: anulado
+          // Un anulado no se sirve: no hay botón que apretar, solo el rastro de que existió.
+          ? const Icon(Icons.cancel, color: Color(0xFFC0392B))
+          : servido
+              ? const Icon(Icons.check_circle, color: Color(0xFF146C4E))
+              : FilledButton(onPressed: onMarcar, child: const Text('Marcar')),
     );
   }
 }

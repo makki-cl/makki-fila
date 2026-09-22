@@ -67,9 +67,9 @@ class AppState extends ChangeNotifier {
     _token = await _store.token();
     operador = await _store.operador();
     modo = await _store.modo() == ModoMeson.caja.name ? ModoMeson.caja : ModoMeson.fila;
-    orden = await _store.orden() == OrdenLista.empresa.name
-        ? OrdenLista.empresa
-        : OrdenLista.alfabetico;
+    final ordenGuardado = await _store.orden();
+    orden = OrdenLista.values.firstWhere((o) => o.name == ordenGuardado,
+        orElse: () => OrdenLista.alfabetico);
     final guardada = await _store.resolucion();
     resolucion = ResolucionCamara.values.firstWhere((r) => r.name == guardada,
         orElse: () => ResolucionCamara.automatica);
