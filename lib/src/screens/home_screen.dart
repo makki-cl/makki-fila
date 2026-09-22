@@ -72,7 +72,7 @@ class HomeScreen extends StatelessWidget {
             if (estado.modo == ModoMeson.caja)
               const _Aviso(
                 color: Color(0xFFF1F5F9),
-                borde: Color(0xFF123528),
+                borde: Color(0xFF2B2140),
                 icono: Icons.point_of_sale,
                 texto: 'Este equipo está cobrando vales en la caja. Los almuerzos de la minuta '
                     'se marcan desde el modo fila.',
@@ -221,7 +221,7 @@ class _Contador extends StatelessWidget {
                   style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w700,
-                      color: destacado ? const Color(0xFF146C4E) : Colors.black87)),
+                      color: destacado ? const Color(0xFF3B2D52) : Colors.black87)),
             ],
           ),
         ),
@@ -256,7 +256,7 @@ class _FilaOpcion extends StatelessWidget {
               value: proporcion.clamp(0.0, 1.0),
               minHeight: 7,
               backgroundColor: const Color(0xFFEDF0EA),
-              color: proporcion >= 1 ? const Color(0xFFC2410C) : const Color(0xFF146C4E),
+              color: proporcion >= 1 ? const Color(0xFFC2410C) : const Color(0xFF3B2D52),
             ),
           ),
         ],

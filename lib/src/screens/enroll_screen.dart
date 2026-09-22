@@ -49,7 +49,7 @@ class _EnrollScreenState extends State<EnrollScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                         fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: 5,
-                        color: Color(0xFF123528))),
+                        color: Color(0xFF2B2140))),
                 const SizedBox(height: 4),
                 const Text('Lector de tickets del mesón',
                     textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)),

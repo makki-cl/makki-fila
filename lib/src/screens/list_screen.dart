@@ -271,10 +271,10 @@ class _Fila extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
             decoration: BoxDecoration(
-                color: const Color(0xFF146C4E).withValues(alpha: .12),
+                color: const Color(0xFF3B2D52).withValues(alpha: .12),
                 borderRadius: BorderRadius.circular(999)),
             child: const Text('con QR',
-                style: TextStyle(fontSize: 11, color: Color(0xFF146C4E))),
+                style: TextStyle(fontSize: 11, color: Color(0xFF3B2D52))),
           ),
       ]),
       subtitle: Text([
