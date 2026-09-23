@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../actualizacion.dart';
-import '../api/models.dart';
 import '../app_state.dart';
 import 'anotar_screen.dart';
 import 'caja_screen.dart';
-import 'vivo_screen.dart';
+import 'resumen_del_dia.dart';
 import 'list_screen.dart';
 import 'scan_screen.dart';
 
@@ -133,24 +132,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 texto: 'Todavía no se ha bajado ningún día. Conéctate y toca actualizar.',
               )
             else ...[
+              // La portada es «cómo va el día»: es lo que el mesón mira todo el turno. Los
+              // mismos seis números y la misma tabla que el panel de la web.
               Text(dia.fecha,
                   style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
               Text('${dia.unidad} · minuta ${dia.estado}',
                   style: const TextStyle(color: Colors.black54)),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  _Contador(titulo: 'Emitidos', valor: dia.emitidos),
-                  _Contador(titulo: 'Servidos', valor: dia.servidos),
-                  _Contador(titulo: 'Por servir', valor: dia.porServir, destacado: true),
-                ],
-              ),
-              const SizedBox(height: 16),
-              for (final o in dia.opciones) _FilaOpcion(opcion: o),
-              if (dia.nota != null && dia.nota!.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Text(dia.nota!, style: const TextStyle(color: Colors.black54)),
-              ],
+              ResumenDelDia(dia: dia),
             ],
             const SizedBox(height: 24),
             if (estado.modo == ModoMeson.caja)
@@ -168,13 +157,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 22)),
                 icon: const Icon(Icons.qr_code_scanner, size: 28),
                 label: const Text('Escanear QR', style: TextStyle(fontSize: 18)),
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: dia == null ? null : () => _abrir(context, VivoScreen(estado: estado)),
-                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 18)),
-                icon: const Icon(Icons.bolt),
-                label: const Text('Cómo va el día', style: TextStyle(fontSize: 16)),
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
@@ -255,76 +237,6 @@ class _SelectorDeModo extends StatelessWidget {
         onSelectionChanged: (s) => estado.cambiarModo(s.first),
         showSelectedIcon: false,
       );
-}
-
-class _Contador extends StatelessWidget {
-  const _Contador({required this.titulo, required this.valor, this.destacado = false});
-
-  final String titulo;
-  final int valor;
-  final bool destacado;
-
-  @override
-  Widget build(BuildContext context) => Expanded(
-        child: Container(
-          margin: const EdgeInsets.only(right: 8),
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: const Color(0xFFE0E4DE)),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(titulo.toUpperCase(),
-                  style: const TextStyle(fontSize: 10, letterSpacing: 1, color: Colors.black54)),
-              Text('$valor',
-                  style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700,
-                      color: destacado ? const Color(0xFF372B62) : Colors.black87)),
-            ],
-          ),
-        ),
-      );
-}
-
-class _FilaOpcion extends StatelessWidget {
-  const _FilaOpcion({required this.opcion});
-
-  final OpcionMenu opcion;
-
-  @override
-  Widget build(BuildContext context) {
-    final proporcion = opcion.cupo == 0 ? 0.0 : opcion.tomados / opcion.cupo;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(child: Text(opcion.nombre, style: const TextStyle(fontWeight: FontWeight.w600))),
-              Text('${opcion.tomados} / ${opcion.cupo}',
-                  style: const TextStyle(fontFamily: 'monospace')),
-            ],
-          ),
-          const SizedBox(height: 4),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: proporcion.clamp(0.0, 1.0),
-              minHeight: 7,
-              backgroundColor: const Color(0xFFEDF0EA),
-              color: proporcion >= 1 ? const Color(0xFFC2410C) : const Color(0xFF372B62),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _Aviso extends StatelessWidget {
