@@ -25,6 +25,20 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icono/
+
+# El ícono del lanzador sale del logotipo oficial. La carpeta android/ la genera el CI en cada
+# compilación, así que esto se corre después de flutter create: si se guardaran los PNG ya
+# ubicados, la primera regeneración se los llevaría.
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icono/makki.png"
+  adaptive_icon_background: "#372b62"
+  adaptive_icon_foreground: "assets/icono/makki-adaptativo.png"
+  remove_alpha_ios: true

@@ -54,6 +54,10 @@ jobs:
       - name: Dependencias
         run: flutter pub get
 
+      # El ícono del lanzador: se genera acá porque android/ se rehace en cada compilación.
+      - name: Ícono de la aplicación
+        run: dart run flutter_launcher_icons
+
       - name: Analizar código
         run: flutter analyze --no-fatal-infos
 

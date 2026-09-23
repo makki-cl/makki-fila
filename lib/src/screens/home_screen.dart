@@ -54,7 +54,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(estado.sesion?.unitName ?? 'Makki · Fila'),
+        // La marca a la izquierda y el local al lado: el mesón mira esta barra todo el turno.
+        title: Row(children: [
+          Image.asset('assets/icono/makki-marca.png', height: 22),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(estado.sesion?.unitName ?? 'Fila',
+                overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 17)),
+          ),
+        ]),
         actions: [
           if (estado.pendientes > 0)
             Padding(

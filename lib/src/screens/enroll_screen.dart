@@ -45,11 +45,8 @@ class _EnrollScreenState extends State<EnrollScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('MAKKI',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 34, fontWeight: FontWeight.w800, letterSpacing: 5,
-                        color: Color(0xFF291F47))),
+                // La morada: esta pantalla tiene fondo blanco y la blanca no se vería.
+                Image.asset('assets/icono/makki-marca-morada.png', height: 34),
                 const SizedBox(height: 4),
                 const Text('Lector de tickets del mesón',
                     textAlign: TextAlign.center, style: TextStyle(color: Colors.black54)),
