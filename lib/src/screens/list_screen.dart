@@ -202,7 +202,10 @@ class _ListScreenState extends State<ListScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (i > 0 && filas[i - 1] is Ticket) const Divider(height: 1),
-                          _Fila(ticket: t, onMarcar: () => _marcar(t)),
+                          _Fila(
+                              ticket: t,
+                              onMarcar: () => _marcar(t),
+                              numeroDeOpcion: dia?.etiquetaPorNombre(t.opcion) ?? ''),
                         ],
                       );
                     },
@@ -265,10 +268,13 @@ class _ListScreenState extends State<ListScreen> {
 }
 
 class _Fila extends StatelessWidget {
-  const _Fila({required this.ticket, required this.onMarcar});
+  const _Fila({required this.ticket, required this.onMarcar, this.numeroDeOpcion = ''});
 
   final Ticket ticket;
   final VoidCallback onMarcar;
+
+  /// «Opción 2», que es como se pide el plato en el mesón. Vacío si no se pudo resolver.
+  final String numeroDeOpcion;
 
   @override
   Widget build(BuildContext context) {
@@ -321,7 +327,7 @@ class _Fila extends StatelessWidget {
       ]),
       subtitle: Text([
         ticket.codigoLegible,
-        ticket.opcion,
+        numeroDeOpcion.isEmpty ? ticket.opcion : '$numeroDeOpcion · ${ticket.opcion}',
         if (ticket.empresa != null) ticket.empresa!,
         if (ticket.area != null && ticket.area!.isNotEmpty) ticket.area!,
         // La hora de quien ya pasó: es lo primero que se pregunta cuando alguien dice que no

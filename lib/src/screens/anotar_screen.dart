@@ -130,12 +130,12 @@ class _AnotarScreenState extends State<AnotarScreen> {
                   decoration: const InputDecoration(labelText: 'Opción', border: OutlineInputBorder()),
                   // Salen todas, con cupo o sin él: el que llega ya está en el mesón.
                   items: [
-                    for (final o in dia.opciones)
+                    for (final (n, o) in dia.opciones.indexed)
                       DropdownMenuItem(
                         value: o.id,
                         child: Text(o.tomados < o.cupo
-                            ? '${o.nombre}  (${o.cupo - o.tomados} libres)'
-                            : '${o.nombre}  · SIN CUPO'),
+                            ? 'Opción ${n + 1} · ${o.nombre}  (${o.cupo - o.tomados} libres)'
+                            : 'Opción ${n + 1} · ${o.nombre}  · SIN CUPO'),
                       ),
                   ],
                   onChanged: (v) => setState(() => _opcionId = v),

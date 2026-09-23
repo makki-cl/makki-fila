@@ -156,6 +156,23 @@ class RespuestaAnotar {
   final String? mensaje;
 }
 
+/// En Makki los platos se nombran por su número: «hoy la 1 es cazuela». El número es la
+/// POSICIÓN en la minuta —la que fijó el administrador— y no un dato aparte, para que no
+/// existan dos «opción 2» ni una lista que salte de la 1 a la 3.
+extension NumeroDeOpcion on DiaDeTrabajo {
+  /// «Opción 2» para esa opción, o vacío si no es del día.
+  String etiquetaDeOpcion(String opcionId) {
+    final n = opciones.indexWhere((o) => o.id == opcionId);
+    return n < 0 ? '' : 'Opción ${n + 1}';
+  }
+
+  /// Lo mismo buscando por nombre: los tickets traen el nombre del plato, no su id.
+  String etiquetaPorNombre(String nombre) {
+    final n = opciones.indexWhere((o) => o.nombre == nombre);
+    return n < 0 ? '' : 'Opción ${n + 1}';
+  }
+}
+
 class DiaDeTrabajo {
   DiaDeTrabajo({
     required this.fecha,
