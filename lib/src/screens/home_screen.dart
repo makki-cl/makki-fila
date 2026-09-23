@@ -159,11 +159,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 label: const Text('Escanear QR', style: TextStyle(fontSize: 18)),
               ),
               const SizedBox(height: 12),
+              // Con el día cerrado el servicio terminó: no se anota a nadie más, ni acá. Se
+              // deja el botón a la vista y apagado, porque esconderlo hace buscarlo.
               OutlinedButton.icon(
-                onPressed: dia == null ? null : () => _abrir(context, AnotarScreen(estado: estado)),
+                onPressed: dia == null || dia.diaCerrado
+                    ? null
+                    : () => _abrir(context, AnotarScreen(estado: estado)),
                 style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 18)),
                 icon: const Icon(Icons.person_add),
-                label: const Text('Anotar comensal', style: TextStyle(fontSize: 16)),
+                label: Text(
+                    dia != null && dia.diaCerrado
+                        ? 'Anotar comensal · día cerrado'
+                        : 'Anotar comensal',
+                    style: const TextStyle(fontSize: 16)),
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(

@@ -39,11 +39,15 @@ class OpcionMenu {
 }
 
 /// Estado de un ticket. 'servido' incluye lo marcado localmente sin señal.
-enum EstadoTicket { vigente, servido, anulado }
+///
+/// «No servido» lo pone el cierre del día sobre quien reservó y no pasó por el mesón: hasta
+/// ese momento era un pendiente legítimo, después ya no va a llegar.
+enum EstadoTicket { vigente, servido, anulado, noServido }
 
 EstadoTicket _estadoDesde(String? texto) => switch (texto) {
       'servido' => EstadoTicket.servido,
       'anulado' => EstadoTicket.anulado,
+      'no_servido' => EstadoTicket.noServido,
       _ => EstadoTicket.vigente,
     };
 
@@ -119,7 +123,7 @@ class Ticket {
         'clientName': empresa,
         'selfManaged': acreditada,
         'optionName': opcion,
-        'state': estado.name,
+        'state': estado == EstadoTicket.noServido ? 'no_servido' : estado.name,
         'consumedUtc': consumidoUtc?.toIso8601String(),
         'comment': comentario,
         'cancelledUtc': anuladoUtc?.toIso8601String(),
@@ -162,6 +166,7 @@ class DiaDeTrabajo {
     required this.tickets,
     required this.bajadoUtc,
     this.empresas = const [],
+    this.diaCerrado = false,
   });
 
   final String fecha;
@@ -174,6 +179,10 @@ class DiaDeTrabajo {
   /// Las empresas que se pueden elegir al anotar a alguien. Vienen en la descarga del día
   /// para poder anotar aunque se caiga el wifi.
   final List<EmpresaDelDia> empresas;
+
+  /// El día está cerrado: terminó el servicio y ya no se anota a nadie desde el mesón. No es
+  /// lo mismo que las inscripciones cerradas, con las que el mesón sí sigue anotando.
+  final bool diaCerrado;
 
   /// Cuándo se bajó esta copia: la app avisa si está vieja.
   final DateTime bajadoUtc;
@@ -197,6 +206,7 @@ class DiaDeTrabajo {
         empresas: ((j['clients'] as List?) ?? [])
             .map((c) => EmpresaDelDia.desdeJson(c as Map<String, dynamic>))
             .toList(),
+        diaCerrado: j['diaCerrado'] as bool? ?? false,
       );
 
   Map<String, dynamic> aJson() => {
@@ -209,6 +219,7 @@ class DiaDeTrabajo {
             .toList(),
         'tickets': tickets.map((t) => t.aJson()).toList(),
         'clients': empresas.map((c) => c.aJson()).toList(),
+        'diaCerrado': diaCerrado,
         'cachedAt': bajadoUtc.toIso8601String(),
       };
 }

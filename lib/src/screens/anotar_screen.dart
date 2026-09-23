@@ -107,7 +107,7 @@ class _AnotarScreenState extends State<AnotarScreen> {
 
     setState(() => _error = switch (r.resultado) {
           ResultadoAnotar.sinCupo => 'Esa opción no tiene cupo',
-          ResultadoAnotar.cerrada => 'La minuta ya no recibe inscripciones',
+          ResultadoAnotar.cerrada => 'El día está cerrado: ya no se anota a nadie',
           ResultadoAnotar.sinConexion =>
             'Sin conexión: anotar necesita servidor, porque el cupo vive allá',
           _ => r.mensaje ?? 'No se pudo anotar',

@@ -181,7 +181,7 @@ class AppState extends ChangeNotifier {
       // si no el ticket reaparecería como pendiente y alguien lo serviría dos veces.
       for (final m in cola) {
         final t = _buscarEn(bajado, m.ticket);
-        if (t != null && t.estado == EstadoTicket.vigente) {
+        if (t != null && t.estado != EstadoTicket.anulado) {
           t.estado = EstadoTicket.servido;
           t.consumidoUtc = m.cuandoUtc;
         }

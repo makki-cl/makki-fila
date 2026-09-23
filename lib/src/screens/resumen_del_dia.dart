@@ -25,8 +25,12 @@ class ResumenDelDia extends StatelessWidget {
           spacing: 10,
           runSpacing: 10,
           children: [
+            // Mismo orden que la web y que el detalle por plato, siguiendo el recorrido del
+            // día: cuánto había, cuánto se tomó, cuánto se puede seguir vendiendo, y recién
+            // ahí cómo va el servicio.
             _Numero(titulo: 'Cupo', valor: cupo),
             _Numero(titulo: 'Reservados', valor: reservados),
+            _Numero(titulo: 'Disponibles', valor: cupo - reservados),
             _Numero(titulo: 'Servidos', valor: servidos, color: const Color(0xFF372B62)),
             _Numero(
                 titulo: 'Por servir',
@@ -34,7 +38,6 @@ class ResumenDelDia extends StatelessWidget {
                 color: const Color(0xFFC2410C),
                 destacado: true),
             _Numero(titulo: 'Para llevar', valor: llevar, color: const Color(0xFFC2410C)),
-            _Numero(titulo: 'Quedan', valor: cupo - reservados),
           ],
         ),
         const SizedBox(height: 20),
@@ -123,10 +126,12 @@ class _Plato extends StatelessWidget {
               children: [
                 _dato('cupo', opcion.cupo),
                 _dato('reservados', opcion.tomados),
+                _dato('disponibles', opcion.cupo - opcion.tomados),
                 _dato('servidos', servidos),
                 _dato('por servir', opcion.tomados - servidos),
-                if (llevar > 0) _dato('para llevar', llevar),
-                _dato('quedan', opcion.cupo - opcion.tomados),
+                // Se muestra aunque sea cero: si aparece y desaparece, el orden deja de ser
+                // el mismo en todas las filas y hay que leer las etiquetas cada vez.
+                _dato('para llevar', llevar),
               ],
             ),
           ),
