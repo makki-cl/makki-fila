@@ -40,14 +40,18 @@ class OpcionMenu {
 
 /// Estado de un ticket. 'servido' incluye lo marcado localmente sin señal.
 ///
-/// «No servido» lo pone el cierre del día sobre quien reservó y no pasó por el mesón: hasta
-/// ese momento era un pendiente legítimo, después ya no va a llegar.
-enum EstadoTicket { vigente, servido, anulado, noServido }
+/// «No cancelado» lo pone el cierre del día sobre quien reservó, no anuló dentro de plazo y
+/// no pasó por el mesón: hasta ese momento era un pendiente legítimo, después ya no va a
+/// llegar. Se cobra igual, porque la ración se cocinó.
+enum EstadoTicket { vigente, servido, anulado, noCancelado }
 
+/// Se aceptan los dos nombres: el servidor puede estar en una versión anterior a la que
+/// renombró el estado, y una tablet que no entienda la palabra mostraría como pendiente a
+/// alguien que ya no va a llegar.
 EstadoTicket _estadoDesde(String? texto) => switch (texto) {
       'servido' => EstadoTicket.servido,
       'anulado' => EstadoTicket.anulado,
-      'no_servido' => EstadoTicket.noServido,
+      'no_cancelado' || 'no_servido' => EstadoTicket.noCancelado,
       _ => EstadoTicket.vigente,
     };
 
@@ -123,7 +127,7 @@ class Ticket {
         'clientName': empresa,
         'selfManaged': acreditada,
         'optionName': opcion,
-        'state': estado == EstadoTicket.noServido ? 'no_servido' : estado.name,
+        'state': estado == EstadoTicket.noCancelado ? 'no_cancelado' : estado.name,
         'consumedUtc': consumidoUtc?.toIso8601String(),
         'comment': comentario,
         'cancelledUtc': anuladoUtc?.toIso8601String(),

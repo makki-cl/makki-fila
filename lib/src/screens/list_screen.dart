@@ -21,7 +21,7 @@ class ListScreen extends StatefulWidget {
 }
 
 /// Qué parte de la lista se está mirando.
-enum FiltroLista { porServir, servidos, noServidos, paraLlevar, anulados, todos }
+enum FiltroLista { porServir, servidos, noCancelados, paraLlevar, anulados, todos }
 
 class _ListScreenState extends State<ListScreen> {
   String _busqueda = '';
@@ -41,24 +41,24 @@ class _ListScreenState extends State<ListScreen> {
     final base = (dia?.tickets ?? []).where((t) => !t.acreditada).toList();
     final servidos = base.where((t) => t.estado == EstadoTicket.servido).length;
     final anulados = base.where((t) => t.estado == EstadoTicket.anulado).length;
-    final noServidos =
-        base.where((t) => t.estado == EstadoTicket.noServido).length;
+    final noCancelados =
+        base.where((t) => t.estado == EstadoTicket.noCancelado).length;
     final llevar = base
         .where((t) => t.paraLlevar && t.estado != EstadoTicket.anulado)
         .length;
-    final porServir = base.length - servidos - anulados - noServidos;
+    final porServir = base.length - servidos - anulados - noCancelados;
 
     final tickets = base.where((t) {
       final servido = t.estado == EstadoTicket.servido;
       final anulado = t.estado == EstadoTicket.anulado;
-      final noServido = t.estado == EstadoTicket.noServido;
+      final noCancelado = t.estado == EstadoTicket.noCancelado;
       // Los anulados solo aparecen cuando se piden: no tienen nada que hacer en la lista con
       // la que se atiende, y confundirlos con un pendiente es servir un almuerzo de más.
       if (_filtro != FiltroLista.anulados && anulado) return false;
-      // El no servido tampoco es un pendiente: el día en que se cerró ya no llegó.
-      if (_filtro == FiltroLista.porServir && (servido || noServido)) return false;
+      // El no cancelado tampoco es un pendiente: el día en que se cerró ya no llegó.
+      if (_filtro == FiltroLista.porServir && (servido || noCancelado)) return false;
       if (_filtro == FiltroLista.servidos && !servido) return false;
-      if (_filtro == FiltroLista.noServidos && !noServido) return false;
+      if (_filtro == FiltroLista.noCancelados && !noCancelado) return false;
       if (_filtro == FiltroLista.anulados && !anulado) return false;
       // La cocina prepara los envases aparte: poder ver solo esos es media pantalla de trabajo.
       if (_filtro == FiltroLista.paraLlevar && !t.paraLlevar) return false;
@@ -155,8 +155,8 @@ class _ListScreenState extends State<ListScreen> {
                   label: Text('Servidos ($servidos)'),
                 ),
                 ButtonSegment(
-                  value: FiltroLista.noServidos,
-                  label: Text('No servidos ($noServidos)'),
+                  value: FiltroLista.noCancelados,
+                  label: Text('No cancelados ($noCancelados)'),
                 ),
                 ButtonSegment(
                   value: FiltroLista.paraLlevar,
@@ -223,7 +223,7 @@ class _ListScreenState extends State<ListScreen> {
     return switch (_filtro) {
       FiltroLista.porServir => 'No queda nadie por servir',
       FiltroLista.servidos => 'Todavía no se ha servido a nadie',
-      FiltroLista.noServidos => 'Nadie quedó sin servir',
+      FiltroLista.noCancelados => 'Nadie quedó como no cancelado',
       FiltroLista.paraLlevar => 'Nadie pidió para llevar',
       FiltroLista.anulados => 'Nadie ha anulado hoy',
       FiltroLista.todos => 'No hay nadie anotado por el enlace',
@@ -280,7 +280,7 @@ class _Fila extends StatelessWidget {
   Widget build(BuildContext context) {
     final servido = ticket.estado == EstadoTicket.servido;
     final anulado = ticket.estado == EstadoTicket.anulado;
-    final noServido = ticket.estado == EstadoTicket.noServido;
+    final noCancelado = ticket.estado == EstadoTicket.noCancelado;
     return ListTile(
       title: Row(children: [
         // Para llevar va antes que el nombre: es lo que cambia lo que hace el mesón con el
@@ -304,14 +304,14 @@ class _Fila extends StatelessWidget {
                   decoration:
                       servido || anulado ? TextDecoration.lineThrough : null)),
         ),
-        if (noServido)
+        if (noCancelado)
           Container(
             margin: const EdgeInsets.only(left: 6),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
                 color: const Color(0xFFB45309).withValues(alpha: .14),
                 borderRadius: BorderRadius.circular(999)),
-            child: const Text('NO SERVIDO',
+            child: const Text('NO CANCELADO',
                 style: TextStyle(
                     fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFB45309))),
           ),
