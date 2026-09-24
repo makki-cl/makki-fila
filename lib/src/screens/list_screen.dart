@@ -63,8 +63,9 @@ class _ListScreenState extends State<ListScreen> {
       // la que se atiende, y confundirlos con un pendiente es servir un almuerzo de más.
       if (_filtro != FiltroLista.anulados && anulado) return false;
       // El no cancelado tampoco es un pendiente: el día en que se cerró ya no llegó.
-      if (_filtro == FiltroLista.porServir && (servido || noCancelado))
+      if (_filtro == FiltroLista.porServir && (servido || noCancelado)) {
         return false;
+      }
       if (_filtro == FiltroLista.servidos && !servido) return false;
       if (_filtro == FiltroLista.noCancelados && !noCancelado) return false;
       if (_filtro == FiltroLista.anulados && !anulado) return false;
@@ -196,8 +197,9 @@ class _ListScreenState extends State<ListScreen> {
                     itemCount: filas.length,
                     itemBuilder: (context, i) {
                       final fila = filas[i];
-                      if (fila is GrupoDeEmpresa)
+                      if (fila is GrupoDeEmpresa) {
                         return _Encabezado(grupo: fila);
+                      }
                       final t = fila as Ticket;
                       return Column(
                         mainAxisSize: MainAxisSize.min,
