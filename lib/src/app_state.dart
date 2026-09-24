@@ -206,6 +206,37 @@ class AppState extends ChangeNotifier {
   /// minuta— así que sin servidor no hay forma de saber si está vigente o ya se gastó, y
   /// cobrarlo a ciegas sería entregar productos contra un ticket que quizá no existe. Sin
   /// señal, la caja cobra en efectivo.
+  /// Anula una reserva desde la lista del mesón.
+  ///
+  /// Exige señal a propósito: a diferencia de marcar, anular no se puede encolar para
+  /// después. Entre que se pide y se envía, la persona puede haber pasado por el otro equipo,
+  /// y una anulación aplicada a ciegas le quita un almuerzo que ya se comió.
+  Future<RespuestaAnular> anular(Ticket ticket) async {
+    final credencial = ticket.token.isNotEmpty ? ticket.token : ticket.codigo;
+
+    try {
+      final r = await _api.anular(credencial, _operadorOEquipo);
+
+      if (r.resultado == ResultadoAnular.ok || r.resultado == ResultadoAnular.yaAnulada) {
+        ticket.estado = EstadoTicket.anulado;
+        if (dia != null) await _store.guardarDia(dia!);
+        notifyListeners();
+      }
+
+      // Si el servidor dice que ya pasó por la fila, la copia local estaba atrasada: se
+      // corrige en pantalla antes de que alguien lo intente de nuevo.
+      if (r.resultado == ResultadoAnular.yaServida) {
+        ticket.estado = EstadoTicket.servido;
+        if (dia != null) await _store.guardarDia(dia!);
+        notifyListeners();
+      }
+
+      return r;
+    } catch (_) {
+      return const RespuestaAnular(ResultadoAnular.sinConexion);
+    }
+  }
+
   Future<RespuestaMarca> marcar(String lectura, {num? monto}) async {
     if (modo == ModoMeson.caja) {
       try {

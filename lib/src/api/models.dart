@@ -158,6 +158,28 @@ class EmpresaDelDia {
 /// Cómo salió anotar a alguien desde el mesón.
 enum ResultadoAnotar { ok, sinCupo, cerrada, error, sinConexion }
 
+/// Cómo terminó una anulación pedida desde el mesón.
+enum ResultadoAnular {
+  ok,
+  /// Ya estaba anulada: no es un error, alguien se adelantó.
+  yaAnulada,
+  /// Ya pasó por la fila. Eso no se anula: el plato salió de la cocina.
+  yaServida,
+  /// No es de hoy ni de este casino.
+  noEncontrada,
+  /// El día ya está cerrado.
+  diaCerrado,
+  error,
+  sinConexion,
+}
+
+class RespuestaAnular {
+  const RespuestaAnular(this.resultado, {this.mensaje});
+
+  final ResultadoAnular resultado;
+  final String? mensaje;
+}
+
 class RespuestaAnotar {
   const RespuestaAnotar(this.resultado, {this.codigo, this.sobrecupo = false, this.mensaje});
 

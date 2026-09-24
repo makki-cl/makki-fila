@@ -206,11 +206,32 @@ class _ListScreenState extends State<ListScreen> {
                         children: [
                           if (i > 0 && filas[i - 1] is Ticket)
                             const Divider(height: 1),
-                          _Fila(
-                              ticket: t,
-                              onMarcar: () => _marcar(t),
-                              numeroDeOpcion:
-                                  dia?.numeroDeOpcionPorNombre(t.opcion) ?? 0),
+                          // Se anula arrastrando la fila hacia la derecha, como se archiva
+                          // un correo. Un botón de anular al lado del de marcar es un error
+                          // de un centímetro con la fila esperando; el gesto hay que hacerlo
+                          // a propósito, y encima pide confirmación.
+                          if (t.estado == EstadoTicket.vigente ||
+                              t.estado == EstadoTicket.noCancelado)
+                            Dismissible(
+                              key: ValueKey('anular-${t.id}'),
+                              direction: DismissDirection.startToEnd,
+                              // Hay que arrastrar más de un tercio del ancho: un roce al
+                              // desplazar la lista no alcanza.
+                              dismissThresholds: const {DismissDirection.startToEnd: 0.35},
+                              background: const _FondoAnular(),
+                              confirmDismiss: (_) => _confirmarAnular(t),
+                              child: _Fila(
+                                  ticket: t,
+                                  onMarcar: () => _marcar(t),
+                                  numeroDeOpcion:
+                                      dia?.numeroDeOpcionPorNombre(t.opcion) ?? 0),
+                            )
+                          else
+                            _Fila(
+                                ticket: t,
+                                onMarcar: () => _marcar(t),
+                                numeroDeOpcion:
+                                    dia?.numeroDeOpcionPorNombre(t.opcion) ?? 0),
                         ],
                       );
                     },
@@ -219,6 +240,59 @@ class _ListScreenState extends State<ListScreen> {
         ],
       ),
     );
+  }
+
+  /// Pregunta antes de anular y, si dicen que sí, lo manda.
+  ///
+  /// Devuelve false siempre: la fila no se saca de la lista al anularla, se queda tachada.
+  /// Sacarla haría desaparecer de la pantalla a quien está parado al frente preguntando qué
+  /// pasó, y el mesón necesita poder mostrarle la hora de su anulación.
+  Future<bool> _confirmarAnular(Ticket t) async {
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('¿Anular a esta persona?'),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(t.persona, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          Text([t.codigoLegible, t.opcion, if (t.empresa != null) t.empresa!].join(' · '),
+              style: const TextStyle(color: Colors.black54)),
+          const SizedBox(height: 12),
+          const Text('Queda sin almuerzo para hoy y se libera su cupo.'),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFC0392B)),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Anular'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmado != true || !mounted) return false;
+
+    final r = await widget.estado.anular(t);
+    if (!mounted) return false;
+
+    final mensaje = switch (r.resultado) {
+      ResultadoAnular.ok => '${t.persona} quedó anulado',
+      ResultadoAnular.yaAnulada => 'Ya estaba anulada',
+      ResultadoAnular.yaServida => 'Ya pasó por la fila: eso no se anula',
+      ResultadoAnular.diaCerrado => 'El día ya está cerrado',
+      ResultadoAnular.noEncontrada => 'Esa reserva no es de hoy ni de este casino',
+      ResultadoAnular.sinConexion => 'Sin señal: anular necesita conexión',
+      ResultadoAnular.error => 'No se pudo anular',
+    };
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(r.mensaje ?? mensaje),
+      backgroundColor: r.resultado == ResultadoAnular.ok ? null : const Color(0xFFC0392B),
+    ));
+
+    setState(() {});
+    return false;
   }
 
   /// Un filtro de la barra, con su cuenta.
@@ -473,4 +547,24 @@ class _EtiquetaOpcion extends StatelessWidget {
               fontSize: 13, fontWeight: FontWeight.w800, color: color)),
     );
   }
+}
+
+
+/// Lo que se ve debajo de la fila mientras se la arrastra: rojo y con la palabra, para que
+/// quede claro qué va a pasar antes de soltar.
+class _FondoAnular extends StatelessWidget {
+  const _FondoAnular();
+
+  @override
+  Widget build(BuildContext context) => Container(
+        color: const Color(0xFFC0392B),
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: const Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.block, color: Colors.white),
+          SizedBox(width: 10),
+          Text('Anular',
+              style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+        ]),
+      );
 }

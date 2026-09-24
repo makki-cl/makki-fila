@@ -130,6 +130,36 @@ class ApiClient {
     };
   }
 
+  /// Anula una reserva desde el mesón.
+  ///
+  /// No se encola para después: anular es una decisión que hay que confirmar con el servidor
+  /// —puede que la persona ya haya pasado por la fila en otro equipo— y una anulación
+  /// aplicada a ciegas deja a alguien sin almuerzo comprado.
+  Future<RespuestaAnular> anular(String ticket, String operador) async {
+    final r = await http
+        .post(
+          _uri('/api/line/anular'),
+          headers: _cabeceras,
+          body: jsonEncode({'ticket': ticket, 'operator': operador}),
+        )
+        .timeout(_tiempoLimite);
+
+    if (r.statusCode != 200) {
+      return const RespuestaAnular(ResultadoAnular.error);
+    }
+
+    final j = jsonDecode(utf8.decode(r.bodyBytes)) as Map<String, dynamic>;
+    final mensaje = j['mensaje'] as String?;
+    return switch (j['status'] as String?) {
+      'Ok' => const RespuestaAnular(ResultadoAnular.ok),
+      'Cancelled' => RespuestaAnular(ResultadoAnular.yaAnulada, mensaje: mensaje),
+      'AlreadyConsumed' => RespuestaAnular(ResultadoAnular.yaServida, mensaje: mensaje),
+      'NotFound' => RespuestaAnular(ResultadoAnular.noEncontrada, mensaje: mensaje),
+      'MenuClosed' => RespuestaAnular(ResultadoAnular.diaCerrado, mensaje: mensaje),
+      _ => RespuestaAnular(ResultadoAnular.error, mensaje: mensaje),
+    };
+  }
+
   /// Envía de una vez lo marcado sin señal, con la hora real de cada marca.
   ///
   /// Devuelve cuántas entraron y cuántas el servidor no pudo aplicar. Lo segundo importa: una
