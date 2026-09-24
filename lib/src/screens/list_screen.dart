@@ -21,7 +21,14 @@ class ListScreen extends StatefulWidget {
 }
 
 /// Qué parte de la lista se está mirando.
-enum FiltroLista { porServir, servidos, noCancelados, paraLlevar, anulados, todos }
+enum FiltroLista {
+  porServir,
+  servidos,
+  noCancelados,
+  paraLlevar,
+  anulados,
+  todos
+}
 
 class _ListScreenState extends State<ListScreen> {
   String _busqueda = '';
@@ -56,7 +63,8 @@ class _ListScreenState extends State<ListScreen> {
       // la que se atiende, y confundirlos con un pendiente es servir un almuerzo de más.
       if (_filtro != FiltroLista.anulados && anulado) return false;
       // El no cancelado tampoco es un pendiente: el día en que se cerró ya no llegó.
-      if (_filtro == FiltroLista.porServir && (servido || noCancelado)) return false;
+      if (_filtro == FiltroLista.porServir && (servido || noCancelado))
+        return false;
       if (_filtro == FiltroLista.servidos && !servido) return false;
       if (_filtro == FiltroLista.noCancelados && !noCancelado) return false;
       if (_filtro == FiltroLista.anulados && !anulado) return false;
@@ -82,8 +90,8 @@ class _ListScreenState extends State<ListScreen> {
               onPressed: () async {
                 final r = await widget.estado.sincronizar();
                 if (!context.mounted) return;
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(SnackBar(content: Text(mensajeDeSincronia(r))));
+                ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(mensajeDeSincronia(r))));
                 setState(() {});
               },
               icon: const Icon(Icons.cloud_upload, color: Colors.white),
@@ -129,9 +137,12 @@ class _ListScreenState extends State<ListScreen> {
               // Sin íconos: con tres opciones y los nombres completos, en la tablet del mesón
               // se lee mejor el texto solo.
               segments: const [
-                ButtonSegment(value: OrdenLista.alfabetico, label: Text('Alfabético')),
-                ButtonSegment(value: OrdenLista.empresa, label: Text('Por empresa')),
-                ButtonSegment(value: OrdenLista.cronologico, label: Text('Cronológico')),
+                ButtonSegment(
+                    value: OrdenLista.alfabetico, label: Text('Alfabético')),
+                ButtonSegment(
+                    value: OrdenLista.empresa, label: Text('Por empresa')),
+                ButtonSegment(
+                    value: OrdenLista.cronologico, label: Text('Cronológico')),
               ],
               selected: {widget.estado.orden},
               onSelectionChanged: (o) async {
@@ -142,25 +153,28 @@ class _ListScreenState extends State<ListScreen> {
               style: const ButtonStyle(visualDensity: VisualDensity.compact),
             ),
           ),
-          // Una sola barra, como el orden de arriba. Los seis filtros con su número no caben
-          // en el ancho de la tablet y el botón segmentado los partía en dos filas con los
-          // números cortados: va dentro de una fila que se desliza, así queda entero.
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          // Una sola barra, como el orden de arriba, y entera en pantalla. Deslizarla dejaba
+          // filtros fuera del borde —y el primero cortado—, que es peor que leerla algo más
+          // chica: se encoge lo justo para caber y no se parte en dos renglones.
+          Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-            child: SegmentedButton<FiltroLista>(
-              segments: [
-                _segmento(FiltroLista.porServir, 'Por servir', porServir),
-                _segmento(FiltroLista.servidos, 'Servidos', servidos),
-                _segmento(FiltroLista.noCancelados, 'No cancelados', noCancelados),
-                _segmento(FiltroLista.paraLlevar, 'Llevar', llevar),
-                _segmento(FiltroLista.anulados, 'Anulados', anulados),
-                _segmento(FiltroLista.todos, 'Todos', base.length - anulados),
-              ],
-              selected: {_filtro},
-              onSelectionChanged: (f) => setState(() => _filtro = f.first),
-              showSelectedIcon: false,
-              style: const ButtonStyle(visualDensity: VisualDensity.compact),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: SegmentedButton<FiltroLista>(
+                segments: [
+                  _segmento(FiltroLista.porServir, 'Por servir', porServir),
+                  _segmento(FiltroLista.servidos, 'Servidos', servidos),
+                  _segmento(
+                      FiltroLista.noCancelados, 'No cancelados', noCancelados),
+                  _segmento(FiltroLista.paraLlevar, 'Llevar', llevar),
+                  _segmento(FiltroLista.anulados, 'Anulados', anulados),
+                  _segmento(FiltroLista.todos, 'Todos', base.length - anulados),
+                ],
+                selected: {_filtro},
+                onSelectionChanged: (f) => setState(() => _filtro = f.first),
+                showSelectedIcon: false,
+                style: const ButtonStyle(visualDensity: VisualDensity.compact),
+              ),
             ),
           ),
           if (acreditados > 0)
@@ -182,16 +196,19 @@ class _ListScreenState extends State<ListScreen> {
                     itemCount: filas.length,
                     itemBuilder: (context, i) {
                       final fila = filas[i];
-                      if (fila is GrupoDeEmpresa) return _Encabezado(grupo: fila);
+                      if (fila is GrupoDeEmpresa)
+                        return _Encabezado(grupo: fila);
                       final t = fila as Ticket;
                       return Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (i > 0 && filas[i - 1] is Ticket) const Divider(height: 1),
+                          if (i > 0 && filas[i - 1] is Ticket)
+                            const Divider(height: 1),
                           _Fila(
                               ticket: t,
                               onMarcar: () => _marcar(t),
-                              numeroDeOpcion: dia?.numeroDeOpcionPorNombre(t.opcion) ?? 0),
+                              numeroDeOpcion:
+                                  dia?.numeroDeOpcionPorNombre(t.opcion) ?? 0),
                         ],
                       );
                     },
@@ -207,7 +224,8 @@ class _ListScreenState extends State<ListScreen> {
   /// El número va en su propia burbuja y no entre paréntesis: pegado al texto se leía como
   /// parte del nombre del filtro. Y el segmento entero en una sola línea, porque partir
   /// «No cancelados» en dos renglones desordena toda la barra.
-  ButtonSegment<FiltroLista> _segmento(FiltroLista filtro, String texto, int cuantos) =>
+  ButtonSegment<FiltroLista> _segmento(
+          FiltroLista filtro, String texto, int cuantos) =>
       ButtonSegment(
         value: filtro,
         label: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -247,15 +265,20 @@ class _ListScreenState extends State<ListScreen> {
         title: Text(t.persona),
         content: const Text('Marcar como servido sin escanear el QR.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Marcar')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Marcar')),
         ],
       ),
     );
     if (confirmado != true) return;
 
     final resultado =
-        (await widget.estado.marcar(t.token.isNotEmpty ? t.token : t.codigo)).resultado;
+        (await widget.estado.marcar(t.token.isNotEmpty ? t.token : t.codigo))
+            .resultado;
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -263,11 +286,14 @@ class _ListScreenState extends State<ListScreen> {
         ResultadoMarca.ok => '${t.persona}: servido',
         ResultadoMarca.yaConsumido => '${t.persona} ya estaba servido',
         ResultadoMarca.anulado => 'Ese ticket está anulado',
-        ResultadoMarca.fueraDeLaCopia => 'No está en la lista bajada; actualiza',
-        ResultadoMarca.desactivado => '${t.persona} está desactivado por su empresa',
+        ResultadoMarca.fueraDeLaCopia =>
+          'No está en la lista bajada; actualiza',
+        ResultadoMarca.desactivado =>
+          '${t.persona} está desactivado por su empresa',
         ResultadoMarca.valeCobrado => '${t.persona}: vale cobrado',
         ResultadoMarca.valeYaUsado => 'Ese vale ya se usó',
-        ResultadoMarca.valeReservado => '${t.persona} tiene almuerzo reservado con ese ticket',
+        ResultadoMarca.valeReservado =>
+          '${t.persona} tiene almuerzo reservado con ese ticket',
         ResultadoMarca.sinTicket => '${t.persona} está anotado pero sin ticket',
         ResultadoMarca.vencido => 'Ese ticket está vencido',
         _ => 'No se pudo marcar',
@@ -278,7 +304,8 @@ class _ListScreenState extends State<ListScreen> {
 }
 
 class _Fila extends StatelessWidget {
-  const _Fila({required this.ticket, required this.onMarcar, this.numeroDeOpcion = 0});
+  const _Fila(
+      {required this.ticket, required this.onMarcar, this.numeroDeOpcion = 0});
 
   final Ticket ticket;
   final VoidCallback onMarcar;
@@ -305,7 +332,9 @@ class _Fila extends StatelessWidget {
                 borderRadius: BorderRadius.circular(999)),
             child: const Text('PARA LLEVAR',
                 style: TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFC2410C))),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFC2410C))),
           ),
         Expanded(
           child: Text(ticket.persona,
@@ -324,7 +353,9 @@ class _Fila extends StatelessWidget {
                 borderRadius: BorderRadius.circular(999)),
             child: const Text('NO CANCELADO',
                 style: TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFB45309))),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFB45309))),
           ),
         if (ticket.acreditada)
           Container(
@@ -337,16 +368,19 @@ class _Fila extends StatelessWidget {
           ),
       ]),
       subtitle: Text([
-        ticket.codigoLegible,
-        ticket.opcion,
-        if (ticket.empresa != null) ticket.empresa!,
-        if (ticket.area != null && ticket.area!.isNotEmpty) ticket.area!,
-        // La hora de quien ya pasó: es lo primero que se pregunta cuando alguien dice que no
-        // lo atendieron.
-        if (servido && ticket.consumidoUtc != null) 'servido ${_hora(ticket.consumidoUtc!)}',
-        if (anulado)
-          ticket.anuladoUtc != null ? 'ANULADO ${_hora(ticket.anuladoUtc!)}' : 'ANULADO',
-      ].join(' · ')
+            ticket.codigoLegible,
+            ticket.opcion,
+            if (ticket.empresa != null) ticket.empresa!,
+            if (ticket.area != null && ticket.area!.isNotEmpty) ticket.area!,
+            // La hora de quien ya pasó: es lo primero que se pregunta cuando alguien dice que no
+            // lo atendieron.
+            if (servido && ticket.consumidoUtc != null)
+              'servido ${_hora(ticket.consumidoUtc!)}',
+            if (anulado)
+              ticket.anuladoUtc != null
+                  ? 'ANULADO ${_hora(ticket.anuladoUtc!)}'
+                  : 'ANULADO',
+          ].join(' · ')
           // Lo que la persona escribió al anotarse: alergias, sin ají, doble arroz. De nada
           // sirve guardarlo si quien sirve el plato no lo ve.
           +
@@ -372,7 +406,6 @@ class _Fila extends StatelessWidget {
   }
 }
 
-
 /// Encabezado del grupo de una empresa. Dice cuántos son, que es lo que pregunta quien pasa
 /// lista por empresa antes de contar cabezas.
 class _Encabezado extends StatelessWidget {
@@ -389,7 +422,8 @@ class _Encabezado extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(grupo.empresa,
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                style:
+                    const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
             Text('${grupo.cuantos}',
                 style: const TextStyle(fontFamily: 'monospace', fontSize: 13)),
           ],
@@ -402,7 +436,6 @@ String _hora(DateTime utc) {
   final l = utc.toLocal();
   return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
 }
-
 
 /// El número de la opción, con su color.
 ///
@@ -434,7 +467,8 @@ class _EtiquetaOpcion extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text('Opción $numero',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: color)),
+          style: TextStyle(
+              fontSize: 13, fontWeight: FontWeight.w800, color: color)),
     );
   }
 }
