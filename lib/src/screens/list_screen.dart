@@ -142,22 +142,25 @@ class _ListScreenState extends State<ListScreen> {
               style: const ButtonStyle(visualDensity: VisualDensity.compact),
             ),
           ),
-          // Seis filtros con su número no caben en el ancho de la tablet y el botón segmentado
-          // los partía en dos filas, con los números cortados. Van en una fila que se desliza:
-          // se lee todo de corrido y nada queda a medias.
-          SizedBox(
-            height: 46,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              children: [
-                _chipFiltro(FiltroLista.porServir, 'Por servir', porServir),
-                _chipFiltro(FiltroLista.servidos, 'Servidos', servidos),
-                _chipFiltro(FiltroLista.noCancelados, 'No cancelados', noCancelados),
-                _chipFiltro(FiltroLista.paraLlevar, 'Llevar', llevar),
-                _chipFiltro(FiltroLista.anulados, 'Anulados', anulados),
-                _chipFiltro(FiltroLista.todos, 'Todos', base.length - anulados),
+          // Una sola barra, como el orden de arriba. Los seis filtros con su número no caben
+          // en el ancho de la tablet y el botón segmentado los partía en dos filas con los
+          // números cortados: va dentro de una fila que se desliza, así queda entero.
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            child: SegmentedButton<FiltroLista>(
+              segments: [
+                _segmento(FiltroLista.porServir, 'Por servir', porServir),
+                _segmento(FiltroLista.servidos, 'Servidos', servidos),
+                _segmento(FiltroLista.noCancelados, 'No cancelados', noCancelados),
+                _segmento(FiltroLista.paraLlevar, 'Llevar', llevar),
+                _segmento(FiltroLista.anulados, 'Anulados', anulados),
+                _segmento(FiltroLista.todos, 'Todos', base.length - anulados),
               ],
+              selected: {_filtro},
+              onSelectionChanged: (f) => setState(() => _filtro = f.first),
+              showSelectedIcon: false,
+              style: const ButtonStyle(visualDensity: VisualDensity.compact),
             ),
           ),
           if (acreditados > 0)
@@ -199,35 +202,29 @@ class _ListScreenState extends State<ListScreen> {
     );
   }
 
-  /// Un filtro con su cuenta. El número va aparte, en su propia pastilla: pegado al texto
-  /// entre paréntesis se leía como parte del nombre del filtro.
-  Widget _chipFiltro(FiltroLista filtro, String texto, int cuantos) {
-    final elegido = _filtro == filtro;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        selected: elegido,
-        onSelected: (_) => setState(() => _filtro = filtro),
-        showCheckmark: false,
-        visualDensity: VisualDensity.compact,
-        labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+  /// Un filtro de la barra, con su cuenta.
+  ///
+  /// El número va en su propia burbuja y no entre paréntesis: pegado al texto se leía como
+  /// parte del nombre del filtro. Y el segmento entero en una sola línea, porque partir
+  /// «No cancelados» en dos renglones desordena toda la barra.
+  ButtonSegment<FiltroLista> _segmento(FiltroLista filtro, String texto, int cuantos) =>
+      ButtonSegment(
+        value: filtro,
         label: Row(mainAxisSize: MainAxisSize.min, children: [
-          Text(texto, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+          Text(texto, softWrap: false, style: const TextStyle(fontSize: 13.5)),
           const SizedBox(width: 6),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
             decoration: BoxDecoration(
-              color: elegido ? Colors.white.withValues(alpha: .28) : const Color(0x14372B62),
+              color: const Color(0x14372B62),
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text('$cuantos',
                 style: const TextStyle(
-                    fontSize: 12.5, fontWeight: FontWeight.w800, height: 1.25)),
+                    fontSize: 12, fontWeight: FontWeight.w800, height: 1.25)),
           ),
         ]),
-      ),
-    );
-  }
+      );
 
   /// Qué decir cuando no hay nada que mostrar. «Nadie calza con la búsqueda» sobre una
   /// lista de servidos vacía hace pensar que se perdieron los datos.
