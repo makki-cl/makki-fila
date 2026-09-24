@@ -2,11 +2,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:makki_fila/src/api/models.dart';
 import 'package:makki_fila/src/orden.dart';
 
-Ticket persona(String nombre, String? empresa, {DateTime? servido}) => Ticket(
+Ticket persona(String nombre, String? empresa, {DateTime? servido, DateTime? anotado}) => Ticket(
       id: nombre, codigo: 'AAA111', token: nombre, persona: nombre, area: null,
       empresa: empresa, acreditada: false, opcion: 'Cazuela',
       estado: servido == null ? EstadoTicket.vigente : EstadoTicket.servido,
-      consumidoUtc: servido, comentario: null,
+      consumidoUtc: servido, comentario: null, creadoUtc: anotado,
     );
 
 void main() {
@@ -62,5 +62,29 @@ void main() {
       expect(r.last.persona, 'No pasó');
       expect(r, hasLength(4));
     });
+  });
+
+  test('cronológico los que faltan van por orden de llegada, no por nombre', () {
+    final t = DateTime.utc(2026, 9, 24, 9);
+    final fila = [
+      persona('Zoila Vera', 'Yadran', anotado: t),                       // se anotó primero
+      persona('Ana Pérez', 'Yadran', anotado: t.add(const Duration(minutes: 5))),
+      persona('Bruno Díaz', null, anotado: t.add(const Duration(minutes: 9))),
+    ];
+
+    final orden = ordenar(fila, OrdenLista.cronologico).cast<Ticket>();
+    expect(orden.map((x) => x.persona), ['Zoila Vera', 'Ana Pérez', 'Bruno Díaz']);
+  });
+
+  test('cronológico los servidos van arriba, del último al primero', () {
+    final t = DateTime.utc(2026, 9, 24, 12);
+    final fila = [
+      persona('Ana Pérez', 'Yadran', anotado: t),
+      persona('Bruno Díaz', null, servido: t.add(const Duration(minutes: 2)), anotado: t),
+      persona('Carla Soto', null, servido: t.add(const Duration(minutes: 7)), anotado: t),
+    ];
+
+    final orden = ordenar(fila, OrdenLista.cronologico).cast<Ticket>();
+    expect(orden.map((x) => x.persona), ['Carla Soto', 'Bruno Díaz', 'Ana Pérez']);
   });
 }

@@ -9,8 +9,9 @@ enum OrdenLista {
   /// y el que usa quien pasa lista por empresa.
   empresa,
 
-  /// Por hora de atención, el último primero. Es la forma de ver cómo fue pasando la fila y,
-  /// sobre todo, de contestar «¿pasé o no?» mirando el final de la lista.
+  /// Por hora: los servidos del último al primero, y los que faltan por orden de llegada.
+  /// Sirve para dos preguntas distintas —«¿pasé o no?» y «¿quién se anotó primero?»— y en la
+  /// lista de por servir es la única que importa.
   cronologico,
 }
 
@@ -37,14 +38,22 @@ List<Object> ordenar(List<Ticket> tickets, OrdenLista orden) {
   }
 
   if (orden == OrdenLista.cronologico) {
-    // Servidos primero, del más reciente al más viejo. Los que todavía no pasan no tienen
-    // hora que ordenar, así que van al final por nombre: no se pierden de la lista, pero no
-    // se mezclan con los que sí tienen una hora que mirar.
+    // Servidos primero, del más reciente al más viejo: así se contesta «¿pasé o no?» mirando
+    // arriba. Los que todavía no pasan van después POR ORDEN DE LLEGADA —la hora en que se
+    // anotaron—, que es el orden en que corresponde atenderlos; antes caían al final por
+    // nombre y «cronológico» se veía igual que «alfabético». Sin esa hora —un día bajado por
+    // una versión anterior— se ordenan por nombre, que es lo que había.
     final porHora = [...tickets]..sort((a, b) {
         final ha = a.consumidoUtc, hb = b.consumidoUtc;
         if (ha != null && hb != null) return hb.compareTo(ha);
         if (ha != null) return -1;
         if (hb != null) return 1;
+
+        final ca = a.creadoUtc, cb = b.creadoUtc;
+        if (ca != null && cb != null) {
+          final porLlegada = ca.compareTo(cb);
+          if (porLlegada != 0) return porLlegada;
+        }
         return porNombre(a, b);
       });
     return porHora;

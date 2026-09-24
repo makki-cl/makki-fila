@@ -70,6 +70,7 @@ class Ticket {
     required this.comentario,
     this.anuladoUtc,
     this.paraLlevar = false,
+    this.creadoUtc,
   });
 
   final String id;
@@ -94,6 +95,10 @@ class Ticket {
   /// Se lo lleva: va en envase y no ocupa mesa. Hay que saberlo ANTES de servir en loza.
   final bool paraLlevar;
 
+  /// Cuándo se anotó. Con esto se ordena por orden de llegada a quien todavía no ha pasado:
+  /// sin una hora que mirar, «cronológico» le quedaba igual que «alfabético».
+  final DateTime? creadoUtc;
+
   /// Código en el formato en que se lee y se dicta: dos grupos de tres.
   String get codigoLegible =>
       codigo.length == 6 ? '${codigo.substring(0, 3)}-${codigo.substring(3)}' : codigo;
@@ -108,6 +113,7 @@ class Ticket {
         acreditada: j['selfManaged'] as bool? ?? false,
         opcion: j['optionName'] as String? ?? '',
         estado: _estadoDesde(j['state'] as String?),
+        creadoUtc: DateTime.tryParse(j['createdUtc'] as String? ?? '')?.toUtc(),
         consumidoUtc: j['consumedUtc'] == null
             ? null
             : DateTime.tryParse(j['consumedUtc'] as String)?.toUtc(),
@@ -128,6 +134,7 @@ class Ticket {
         'selfManaged': acreditada,
         'optionName': opcion,
         'state': estado == EstadoTicket.noCancelado ? 'no_cancelado' : estado.name,
+        'createdUtc': creadoUtc?.toIso8601String(),
         'consumedUtc': consumidoUtc?.toIso8601String(),
         'comment': comentario,
         'cancelledUtc': anuladoUtc?.toIso8601String(),
@@ -172,9 +179,13 @@ extension NumeroDeOpcion on DiaDeTrabajo {
 
   /// Lo mismo buscando por nombre: los tickets traen el nombre del plato, no su id.
   String etiquetaPorNombre(String nombre) {
-    final n = opciones.indexWhere((o) => o.nombre == nombre);
-    return n < 0 ? '' : 'Opción ${n + 1}';
+    final n = numeroDeOpcionPorNombre(nombre);
+    return n == 0 ? '' : 'Opción $n';
   }
+
+  /// El número de la opción —1, 2, 3— según su lugar en la minuta. Cero si no es de este día.
+  int numeroDeOpcionPorNombre(String nombre) =>
+      opciones.indexWhere((o) => o.nombre == nombre) + 1;
 }
 
 class DiaDeTrabajo {

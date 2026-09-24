@@ -142,39 +142,22 @@ class _ListScreenState extends State<ListScreen> {
               style: const ButtonStyle(visualDensity: VisualDensity.compact),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-            child: SegmentedButton<FiltroLista>(
-              segments: [
-                ButtonSegment(
-                  value: FiltroLista.porServir,
-                  label: Text('Por servir ($porServir)'),
-                ),
-                ButtonSegment(
-                  value: FiltroLista.servidos,
-                  label: Text('Servidos ($servidos)'),
-                ),
-                ButtonSegment(
-                  value: FiltroLista.noCancelados,
-                  label: Text('No cancelados ($noCancelados)'),
-                ),
-                ButtonSegment(
-                  value: FiltroLista.paraLlevar,
-                  label: Text('Llevar ($llevar)'),
-                ),
-                ButtonSegment(
-                  value: FiltroLista.anulados,
-                  label: Text('Anulados ($anulados)'),
-                ),
-                ButtonSegment(
-                  value: FiltroLista.todos,
-                  label: Text('Todos (${base.length - anulados})'),
-                ),
+          // Seis filtros con su número no caben en el ancho de la tablet y el botón segmentado
+          // los partía en dos filas, con los números cortados. Van en una fila que se desliza:
+          // se lee todo de corrido y nada queda a medias.
+          SizedBox(
+            height: 46,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              children: [
+                _chipFiltro(FiltroLista.porServir, 'Por servir', porServir),
+                _chipFiltro(FiltroLista.servidos, 'Servidos', servidos),
+                _chipFiltro(FiltroLista.noCancelados, 'No cancelados', noCancelados),
+                _chipFiltro(FiltroLista.paraLlevar, 'Llevar', llevar),
+                _chipFiltro(FiltroLista.anulados, 'Anulados', anulados),
+                _chipFiltro(FiltroLista.todos, 'Todos', base.length - anulados),
               ],
-              selected: {_filtro},
-              onSelectionChanged: (f) => setState(() => _filtro = f.first),
-              showSelectedIcon: false,
-              style: const ButtonStyle(visualDensity: VisualDensity.compact),
             ),
           ),
           if (acreditados > 0)
@@ -205,13 +188,43 @@ class _ListScreenState extends State<ListScreen> {
                           _Fila(
                               ticket: t,
                               onMarcar: () => _marcar(t),
-                              numeroDeOpcion: dia?.etiquetaPorNombre(t.opcion) ?? ''),
+                              numeroDeOpcion: dia?.numeroDeOpcionPorNombre(t.opcion) ?? 0),
                         ],
                       );
                     },
                   ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Un filtro con su cuenta. El número va aparte, en su propia pastilla: pegado al texto
+  /// entre paréntesis se leía como parte del nombre del filtro.
+  Widget _chipFiltro(FiltroLista filtro, String texto, int cuantos) {
+    final elegido = _filtro == filtro;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        selected: elegido,
+        onSelected: (_) => setState(() => _filtro = filtro),
+        showCheckmark: false,
+        visualDensity: VisualDensity.compact,
+        labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+        label: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(texto, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+            decoration: BoxDecoration(
+              color: elegido ? Colors.white.withValues(alpha: .28) : const Color(0x14372B62),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text('$cuantos',
+                style: const TextStyle(
+                    fontSize: 12.5, fontWeight: FontWeight.w800, height: 1.25)),
+          ),
+        ]),
       ),
     );
   }
@@ -268,13 +281,14 @@ class _ListScreenState extends State<ListScreen> {
 }
 
 class _Fila extends StatelessWidget {
-  const _Fila({required this.ticket, required this.onMarcar, this.numeroDeOpcion = ''});
+  const _Fila({required this.ticket, required this.onMarcar, this.numeroDeOpcion = 0});
 
   final Ticket ticket;
   final VoidCallback onMarcar;
 
-  /// «Opción 2», que es como se pide el plato en el mesón. Vacío si no se pudo resolver.
-  final String numeroDeOpcion;
+  /// El número de la opción en la minuta —1, 2, 3—, que es como se piden los platos en el
+  /// mesón. Cero si no se pudo resolver contra las opciones del día.
+  final int numeroDeOpcion;
 
   @override
   Widget build(BuildContext context) {
@@ -327,7 +341,7 @@ class _Fila extends StatelessWidget {
       ]),
       subtitle: Text([
         ticket.codigoLegible,
-        numeroDeOpcion.isEmpty ? ticket.opcion : '$numeroDeOpcion · ${ticket.opcion}',
+        ticket.opcion,
         if (ticket.empresa != null) ticket.empresa!,
         if (ticket.area != null && ticket.area!.isNotEmpty) ticket.area!,
         // La hora de quien ya pasó: es lo primero que se pregunta cuando alguien dice que no
@@ -343,12 +357,20 @@ class _Fila extends StatelessWidget {
               ? ''
               : '\n«${ticket.comentario}»')),
       isThreeLine: ticket.comentario != null && ticket.comentario!.isNotEmpty,
-      trailing: anulado
+      // La opción va pegada al botón y con color propio: quien sirve mira esa esquina de la
+      // pantalla, no el renglón de datos. Con dos o tres platos, el color se reconoce antes
+      // de alcanzar a leer el número.
+      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+        if (numeroDeOpcion > 0) _EtiquetaOpcion(numero: numeroDeOpcion),
+        const SizedBox(width: 10),
+        if (anulado)
           // Un anulado no se sirve: no hay botón que apretar, solo el rastro de que existió.
-          ? const Icon(Icons.cancel, color: Color(0xFFC0392B))
-          : servido
-              ? const Icon(Icons.check_circle, color: Color(0xFF146C4E))
-              : FilledButton(onPressed: onMarcar, child: const Text('Marcar')),
+          const Icon(Icons.cancel, color: Color(0xFFC0392B))
+        else if (servido)
+          const Icon(Icons.check_circle, color: Color(0xFF146C4E))
+        else
+          FilledButton(onPressed: onMarcar, child: const Text('Marcar')),
+      ]),
     );
   }
 }
@@ -382,4 +404,40 @@ class _Encabezado extends StatelessWidget {
 String _hora(DateTime utc) {
   final l = utc.toLocal();
   return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
+}
+
+
+/// El número de la opción, con su color.
+///
+/// El color no decora: en una tablet apoyada en el mesón, con la fila esperando, se reconoce
+/// «la 1» por el color antes de alcanzar a leer. Por eso es siempre el mismo para el mismo
+/// número, y viene de la posición en la minuta, que la fija el administrador.
+class _EtiquetaOpcion extends StatelessWidget {
+  const _EtiquetaOpcion({required this.numero});
+
+  final int numero;
+
+  /// Colores bien distintos entre sí, no una gama: la diferencia tiene que notarse de reojo.
+  static const _colores = [
+    Color(0xFF372B62), // morado Makki
+    Color(0xFFC2410C), // terracota
+    Color(0xFF146C4E), // verde
+    Color(0xFF1F6F8B), // azul
+    Color(0xFF8C2318), // burdeo
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _colores[(numero - 1) % _colores.length];
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: .12),
+        border: Border.all(color: color.withValues(alpha: .55)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text('Opción $numero',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: color)),
+    );
+  }
 }
